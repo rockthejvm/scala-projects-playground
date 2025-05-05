@@ -399,7 +399,7 @@ object BlogExpanded {
   }
 
   def buildBlog(): Unit = {
-    val resourcePath = "/Users/daniel/dev/rockthejvm/courses-playground/scala-projects-playground/src/main/resources"
+    val resourcePath = (os.pwd / "src/main/resources").toString
     val blogRoot: Path = os.Path(resourcePath) / "blog"
     val outPath:  Path = os.Path(resourcePath) / "blog_out_v2"
 

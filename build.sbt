@@ -37,7 +37,7 @@ blogResourceDir := (Compile / resourceDirectory).value
 
 // Build blog task
 buildBlog := {
-  (Compile / runMain).toTask(" blog.Blog_V2 buildBlog").value
+  (Compile / runMain).toTask(" blog.BlogExpanded buildBlog").value
 }
 
 // Watch and reload task
