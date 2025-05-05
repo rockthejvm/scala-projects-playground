@@ -186,5 +186,5 @@ project/plugins/project/
 
 # End of https://www.toptal.com/developers/gitignore/api/scala,sbt,metals,intellij,java,maven
 
-# exclude images
 *.jpg
+.idea/
