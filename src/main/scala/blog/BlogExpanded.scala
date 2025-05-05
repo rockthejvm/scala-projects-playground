@@ -16,11 +16,11 @@ import scalatags.Text.all.*
 object BlogExpanded {
 
   // Config section
-  val siteName = "Daniel's Programming Blog"
+  val siteName        = "Daniel's Programming Blog"
   val siteDescription = "Thoughts on Scala, Java, and functional programming"
-  val githubUrl = "https://github.com/daniel-ciocirlan"
-  val twitterUrl = "#"
-  val linkedinUrl = "#"
+  val githubUrl       = "https://github.com/daniel-ciocirlan"
+  val twitterUrl      = "#"
+  val linkedinUrl     = "#"
 
   // File helpers
   def mdNameToHtml(name: String): String = name.replace(" ", "-").toLowerCase + ".html"
@@ -31,8 +31,8 @@ object BlogExpanded {
       div(cls := "container")(
         a(cls := "navbar-brand", href := "/index.html")(siteName),
         button(
-          cls := "navbar-toggler",
-          attr("type") := "button",
+          cls                 := "navbar-toggler",
+          attr("type")        := "button",
           attr("data-toggle") := "collapse",
           attr("data-target") := "#navbarNav"
         )(
@@ -62,13 +62,13 @@ object BlogExpanded {
     footer(cls := "footer mt-auto py-3 bg-light")(
       div(cls := "container text-center")(
         div(cls := "social-links mb-3")(
-          a(cls := "mx-2", href := githubUrl, target := "_blank")(
+          a(cls   := "mx-2", href := githubUrl, target := "_blank")(
             i(cls := "fab fa-github fa-2x")
           ),
-          a(cls := "mx-2", href := twitterUrl, target := "_blank")(
+          a(cls   := "mx-2", href := twitterUrl, target := "_blank")(
             i(cls := "fab fa-twitter fa-2x")
           ),
-          a(cls := "mx-2", href := linkedinUrl, target := "_blank")(
+          a(cls   := "mx-2", href := linkedinUrl, target := "_blank")(
             i(cls := "fab fa-linkedin fa-2x")
           )
         ),
@@ -84,11 +84,14 @@ object BlogExpanded {
       head(
         title := s"$t | $siteName",
         meta(charset := "UTF-8"),
-        meta(name := "viewport", content := "width=device-width, initial-scale=1.0"),
-        meta(name := "description", content := siteDescription),
+        meta(name    := "viewport", content    := "width=device-width, initial-scale=1.0"),
+        meta(name    := "description", content := siteDescription),
         link(rel := "stylesheet", href := "https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css"),
         link(rel := "stylesheet", href := "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"),
-        link(rel := "stylesheet", href := "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css"),
+        link(
+          rel  := "stylesheet",
+          href := "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css"
+        ),
         link(rel := "stylesheet", href := "/css/style.css")
       ),
       body(cls := "d-flex flex-column h-100")(
@@ -124,7 +127,7 @@ object BlogExpanded {
             div(cls := "card mb-4")(
               div(cls := "card-body")(
                 h3(cls := "card-title")(a(href := s"/post/${mdNameToHtml(suffix)}")(suffix)),
-                p(cls := "card-text text-muted")(
+                p(cls   := "card-text text-muted")(
                   i(cls := "far fa-calendar-alt mr-2"),
                   timestamp.toString
                 ),
@@ -137,7 +140,9 @@ object BlogExpanded {
           div(cls := "card")(
             div(cls := "card-body")(
               h4(cls := "card-title")("About Me"),
-              p(cls := "card-text")("I'm a passionate programmer focusing on functional programming and Scala ecosystem."),
+              p(cls := "card-text")(
+                "I'm a passionate programmer focusing on functional programming and Scala ecosystem."
+              ),
               a(href := "/about.html", cls := "btn btn-outline-primary")("Learn More")
             )
           )
@@ -160,7 +165,7 @@ object BlogExpanded {
             div(cls := "card h-100")(
               div(cls := "card-body")(
                 h3(cls := "card-title")(a(href := s"/post/${mdNameToHtml(suffix)}")(suffix)),
-                p(cls := "card-text text-muted")(
+                p(cls   := "card-text text-muted")(
                   i(cls := "far fa-calendar-alt mr-2"),
                   timestamp.toString
                 )
@@ -184,11 +189,13 @@ object BlogExpanded {
     val content = Seq(
       h1(cls := "mb-4")("About Me"),
       div(cls := "row")(
-        div(cls := "col-md-4")(
+        div(cls   := "col-md-4")(
           img(cls := "img-fluid rounded mb-4", src := "/img/profile.jpg", alt := "Profile Picture")
         ),
         div(cls := "col-md-8")(
-          p("I'm a software developer passionate about functional programming, Scala, and building robust applications."),
+          p(
+            "I'm a software developer passionate about functional programming, Scala, and building robust applications."
+          ),
           p("With experience in backend development, I enjoy writing clean code and solving complex problems."),
           h3("Skills"),
           ul(
@@ -199,7 +206,9 @@ object BlogExpanded {
             li("Web Development")
           ),
           h3("Background"),
-          p("I have been working with Scala for several years, focusing on building scalable and maintainable applications. My background includes experience with Akka, Play Framework, and other JVM technologies.")
+          p(
+            "I have been working with Scala for several years, focusing on building scalable and maintainable applications. My background includes experience with Akka, Play Framework, and other JVM technologies."
+          )
         )
       )
     )
@@ -217,19 +226,19 @@ object BlogExpanded {
         div(cls := "col-md-6")(
           p("Feel free to reach out to me through any of the following channels:"),
           ul(cls := "list-unstyled")(
-            li(cls := "mb-3")(
+            li(cls  := "mb-3")(
               i(cls := "fas fa-envelope mr-2"),
               a(href := "mailto:contact@example.com")("contact@example.com")
             ),
-            li(cls := "mb-3")(
+            li(cls  := "mb-3")(
               i(cls := "fab fa-github mr-2"),
               a(href := githubUrl, target := "_blank")("GitHub")
             ),
-            li(cls := "mb-3")(
+            li(cls  := "mb-3")(
               i(cls := "fab fa-linkedin mr-2"),
               a(href := linkedinUrl, target := "_blank")("LinkedIn")
             ),
-            li(cls := "mb-3")(
+            li(cls  := "mb-3")(
               i(cls := "fab fa-twitter mr-2"),
               a(href := twitterUrl, target := "_blank")("Twitter")
             )
@@ -355,7 +364,7 @@ object BlogExpanded {
     val content = Seq(
       div(cls := "post-header mb-4")(
         h1(cls := "display-4")(suffix),
-        p(cls := "text-muted")(
+        p(cls   := "text-muted")(
           i(cls := "far fa-calendar-alt mr-2"),
           timestamp.toString
         )
@@ -369,13 +378,13 @@ object BlogExpanded {
           a(href := "/articles.html", cls := "btn btn-outline-primary")("← All Articles"),
           div(cls := "social-share")(
             span(cls := "mr-2")("Share:"),
-            a(cls := "btn btn-sm btn-outline-secondary mr-1", href := "#")(
+            a(cls   := "btn btn-sm btn-outline-secondary mr-1", href := "#")(
               i(cls := "fab fa-twitter")
             ),
-            a(cls := "btn btn-sm btn-outline-secondary mr-1", href := "#")(
+            a(cls   := "btn btn-sm btn-outline-secondary mr-1", href := "#")(
               i(cls := "fab fa-facebook")
             ),
-            a(cls := "btn btn-sm btn-outline-secondary", href := "#")(
+            a(cls   := "btn btn-sm btn-outline-secondary", href := "#")(
               i(cls := "fab fa-linkedin")
             )
           )
@@ -392,9 +401,10 @@ object BlogExpanded {
   def buildBlog(): Unit = {
     val resourcePath = "/Users/daniel/dev/rockthejvm/courses-playground/scala-projects-playground/src/main/resources"
     val blogRoot: Path = os.Path(resourcePath) / "blog"
-    val outPath: Path = os.Path(resourcePath) / "blog_out_v2"
+    val outPath:  Path = os.Path(resourcePath) / "blog_out_v2"
 
-    val postInfo = os.list.apply(blogRoot)
+    val postInfo = os.list
+      .apply(blogRoot)
       .map { p =>
         val s"$prefix - $suffix.md" = p.last
         val publishDate = java.time.LocalDate.ofInstant(
@@ -422,14 +432,13 @@ object BlogExpanded {
     generateCustomCss(outPath)
 
     // Generate blog post pages
-    postInfo.foreach {
-      case (_, suffix, path, timestamp) =>
-        val parser = org.commonmark.parser.Parser.builder().build()
-        val document = parser.parse(os.read(path))
-        val renderer = org.commonmark.renderer.html.HtmlRenderer.builder().build()
-        val output = renderer.render(document)
+    postInfo.foreach { case (_, suffix, path, timestamp) =>
+      val parser   = org.commonmark.parser.Parser.builder().build()
+      val document = parser.parse(os.read(path))
+      val renderer = org.commonmark.renderer.html.HtmlRenderer.builder().build()
+      val output   = renderer.render(document)
 
-        generatePostPage(outPath, suffix, output, timestamp)
+      generatePostPage(outPath, suffix, output, timestamp)
     }
 
     // Generate static pages
@@ -442,7 +451,7 @@ object BlogExpanded {
   def main(args: Array[String]): Unit = {
     args.headOption match {
       case Some("buildBlog") => buildBlog()
-      case _ => println("Unknown command")
+      case _                 => println("Unknown command")
     }
   }
 }
