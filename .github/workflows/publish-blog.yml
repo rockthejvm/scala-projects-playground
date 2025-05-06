@@ -2,7 +2,7 @@ name: Publish Blog to GitHub Pages
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, hkt ]
     paths:
       - 'src/main/resources/blog/**'
       - 'src/main/scala/blog/**'
