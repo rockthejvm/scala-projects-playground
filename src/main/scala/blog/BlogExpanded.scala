@@ -118,7 +118,7 @@ object BlogExpanded {
         p(cls := "lead")(siteDescription),
         hr(cls := "my-4"),
         p("Explore my articles on Scala, functional programming, and more"),
-        a(cls := "btn btn-light btn-lg", href := "/articles.html")("Browse Articles")
+        a(cls := "btn btn-light btn-lg", href := "articles.html")("Browse Articles")
       ),
       div(cls := "row")(
         div(cls := "col-lg-8")(
@@ -143,7 +143,7 @@ object BlogExpanded {
               p(cls := "card-text")(
                 "I'm a passionate programmer focusing on functional programming and Scala ecosystem."
               ),
-              a(href := "/about.html", cls := "btn btn-outline-primary")("Learn More")
+              a(href := "about.html", cls := "btn btn-outline-primary")("Learn More")
             )
           )
         )
@@ -190,7 +190,7 @@ object BlogExpanded {
       h1(cls := "mb-4")("About Me"),
       div(cls := "row")(
         div(cls   := "col-md-4")(
-          img(cls := "img-fluid rounded mb-4", src := "/img/profile.jpg", alt := "Profile Picture")
+          img(cls := "img-fluid rounded mb-4", src := "img/profile.jpg", alt := "Profile Picture")
         ),
         div(cls := "col-md-8")(
           p(
