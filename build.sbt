@@ -5,11 +5,11 @@ version := "0.1"
 scalaVersion := "3.3.4"
 
 libraryDependencies ++= Seq(
-  "com.lihaoyi" %% "requests" % "0.9.0",
-  "com.lihaoyi" %% "upickle" % "4.1.0",
-  "com.lihaoyi" %% "os-lib" % "0.11.4",
+  "com.lihaoyi" %% "requests"  % "0.9.0",
+  "com.lihaoyi" %% "upickle"   % "4.1.0",
+  "com.lihaoyi" %% "os-lib"    % "0.11.4",
   "com.lihaoyi" %% "scalatags" % "0.13.1",
-  "com.lihaoyi" %% "cask" % "0.10.2",
+  "com.lihaoyi" %% "cask"      % "0.10.2",
   // Java libraries
   // scraping
   "org.jsoup" % "jsoup" % "1.19.1",
@@ -18,35 +18,34 @@ libraryDependencies ++= Seq(
   // http apis
   "org.asynchttpclient" % "async-http-client" % "3.0.2",
   // mandelbrot
-  "org.openjfx" % "javafx-base" % "24.0.1",
+  "org.openjfx" % "javafx-base"     % "24.0.1",
   "org.openjfx" % "javafx-controls" % "24.0.1",
-  "org.openjfx" % "javafx-fxml" % "24.0.1",
-  "org.openjfx" % "javafx-swing" % "24.0.1",
-
+  "org.openjfx" % "javafx-fxml"     % "24.0.1",
+  "org.openjfx" % "javafx-swing"    % "24.0.1"
 )
 
 // blog build pipeline
 
 // Custom tasks
 lazy val blogResourceDir = settingKey[File]("Directory containing blog resources")
-lazy val buildBlog = taskKey[Unit]("Build the blog")
-lazy val runBlog = taskKey[Unit]("Run the blog on a local server")
-lazy val watchBlog = taskKey[Unit]("Watch for changes and rebuild blog")
+lazy val buildBlog       = taskKey[Unit]("Build the blog")
+lazy val runBlog         = taskKey[Unit]("Run the blog on a local server")
+lazy val watchBlog       = taskKey[Unit]("Watch for changes and rebuild blog")
 
 // Set resource directory
 blogResourceDir := (Compile / resourceDirectory).value
 
 // Build blog task
 buildBlog := {
-  (Compile / runMain).toTask(" blog.Blog_V2 buildBlog").value
+  (Compile / runMain).toTask(" blog.BlogExpanded buildBlog").value
 }
 
 // Watch and reload task
 watchBlog := {
-  val log = streams.value.log
+  val log         = streams.value.log
   val resourceDir = blogResourceDir.value
   val markdownDir = resourceDir / "blog"
-  val state = Keys.state.value  // Get the current state
+  val state       = Keys.state.value // Get the current state
 
   log.info(s"Watching for changes in $markdownDir")
 
