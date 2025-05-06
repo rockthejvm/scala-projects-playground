@@ -29,7 +29,7 @@ object BlogExpanded {
   def navbar(currentPage: String = ""): Tag = {
     div(cls := "navbar navbar-expand-lg navbar-dark bg-primary")(
       div(cls := "container")(
-        a(cls := "navbar-brand", href := "/index.html")(siteName),
+        a(cls := "navbar-brand", href := "index.html")(siteName),
         button(
           cls                 := "navbar-toggler",
           attr("type")        := "button",
@@ -41,16 +41,16 @@ object BlogExpanded {
         div(cls := "collapse navbar-collapse", id := "navbarNav")(
           ul(cls := "navbar-nav ml-auto")(
             li(cls := s"nav-item ${if (currentPage == "home") "active" else ""}")(
-              a(cls := "nav-link", href := "/index.html")("Home")
+              a(cls := "nav-link", href := "index.html")("Home")
             ),
             li(cls := s"nav-item ${if (currentPage == "articles") "active" else ""}")(
-              a(cls := "nav-link", href := "/articles.html")("Articles")
+              a(cls := "nav-link", href := "articles.html")("Articles")
             ),
             li(cls := s"nav-item ${if (currentPage == "about") "active" else ""}")(
-              a(cls := "nav-link", href := "/about.html")("About")
+              a(cls := "nav-link", href := "about.html")("About")
             ),
             li(cls := s"nav-item ${if (currentPage == "contact") "active" else ""}")(
-              a(cls := "nav-link", href := "/contact.html")("Contact")
+              a(cls := "nav-link", href := "contact.html")("Contact")
             )
           )
         )
@@ -126,12 +126,12 @@ object BlogExpanded {
           featuredPosts.take(3).map { case (_, suffix, _, timestamp) =>
             div(cls := "card mb-4")(
               div(cls := "card-body")(
-                h3(cls := "card-title")(a(href := s"/post/${mdNameToHtml(suffix)}")(suffix)),
+                h3(cls := "card-title")(a(href := s"post/${mdNameToHtml(suffix)}")(suffix)),
                 p(cls   := "card-text text-muted")(
                   i(cls := "far fa-calendar-alt mr-2"),
                   timestamp.toString
                 ),
-                a(href := s"/post/${mdNameToHtml(suffix)}", cls := "btn btn-primary")("Read More")
+                a(href := s"post/${mdNameToHtml(suffix)}", cls := "btn btn-primary")("Read More")
               )
             )
           }
@@ -164,14 +164,14 @@ object BlogExpanded {
           div(cls := "col-md-6 mb-4")(
             div(cls := "card h-100")(
               div(cls := "card-body")(
-                h3(cls := "card-title")(a(href := s"/post/${mdNameToHtml(suffix)}")(suffix)),
+                h3(cls := "card-title")(a(href := s"post/${mdNameToHtml(suffix)}")(suffix)),
                 p(cls   := "card-text text-muted")(
                   i(cls := "far fa-calendar-alt mr-2"),
                   timestamp.toString
                 )
               ),
               div(cls := "card-footer bg-white border-0")(
-                a(href := s"/post/${mdNameToHtml(suffix)}", cls := "btn btn-primary")("Read More")
+                a(href := s"post/${mdNameToHtml(suffix)}", cls := "btn btn-primary")("Read More")
               )
             )
           )
