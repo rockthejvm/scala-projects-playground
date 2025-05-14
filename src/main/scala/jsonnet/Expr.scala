@@ -5,6 +5,7 @@ import jsonnet.Parser.expr
 sealed trait Expr
 
 object Expr:
+  case class Num(value: Int) extends Expr
   case class Str(value: String) extends Expr
   case class Ident(name: String) extends Expr
   case class Plus(left: Expr, right: Expr) extends Expr
@@ -16,13 +17,14 @@ object Expr:
   def evaluate(expr: Expr, scope: Map[String, Value]): Value =
     expr match
       case Expr.Ident(name) => scope(name)
+      case Expr.Num(i)      => Value.Num(i)
       case Expr.Str(s)      => Value.Str(s)
       case Expr.Dict(kvs)   => Value.Dict(kvs.map { case (k, v) => (k, evaluate(v, scope)) })
 
       case Expr.Plus(left, right) =>
-        val Value.Str(leftStr)             = evaluate(left, scope)
-        @unchecked val Value.Str(rightStr) = evaluate(right, scope)
-        Value.Str(leftStr + rightStr)
+        (evaluate(left, scope), evaluate(right, scope)) match
+          case (Value.Num(leftNum), Value.Num(rightNum)) => Value.Num(leftNum + rightNum)
+          case (Value.Str(leftStr), Value.Str(rightStr)) => Value.Str(leftStr + rightStr)
 
       case Expr.Local(name, assigned, body) =>
         val assignedValue = evaluate(assigned, scope)
@@ -38,6 +40,7 @@ object Expr:
 
   def serialize(v: Value): String =
     v match
+      case Value.Num(i)    => i.toString
       case Value.Str(s)    => s"\"$s\""
       case Value.Dict(kvs) => kvs.map((k, v) => s"\"$k\": ${serialize(v)}").mkString("{", ", ", "}")
 
@@ -68,15 +71,26 @@ object Expr:
 
     // jsonnet
     println(jsonnet("""|local greeting = "Hello ";
-        |local person = function (name) {
-        | "name": name,
-        | "welcome": greeting + name + "!"
-        |};
-        |{
-        | "person1": person("Alice"),
-        | "person2": person("Bob"),
-        | "person3": person("Charlie")
-        |}
-        |""".stripMargin))
+         |local person = function (name) {
+         | "name": name,
+         | "welcome": greeting + name + "!"
+         |};
+         |{
+         | "person1": person("Alice"),
+         | "person2": person("Bob"),
+         | "person3": person("Charlie")
+         |}""".stripMargin))
+
+    println(
+      jsonnet(
+        """|local bonus = 15000;
+           |local person = function (name, baseSalary) {
+           | "name": name,
+           | "totalSalary": baseSalary + bonus
+           |};
+           |{"person1": person("Alice", 10000), "person2": person("Bob", 20000)}
+           |""".stripMargin
+      )
+    )
   }
 end Expr

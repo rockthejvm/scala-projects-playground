@@ -5,6 +5,7 @@ import MultiLineWhitespace.*
 
 object Parser:
 
+  def num[p: P]:    P[Expr.Num]   = P(CharIn("0-9").rep(1).!.map(_.toInt)).map(Expr.Num.apply)
   def str0[p: P]:   P[String]     = P("\"" ~~/ CharsWhile(_ != '"', 0).! ~~ "\"")
   def str[p: P]:    P[Expr.Str]   = P(str0).map(Expr.Str.apply)
   def ident0[p: P]: P[String]     = P(CharIn("a-zA-Z_") ~~ CharsWhileIn("a-zA-z0-9_", 0)).!
@@ -14,7 +15,7 @@ object Parser:
 
   def dict[p: P]: P[Expr.Dict] = P("{" ~/ (str0 ~ ":" ~/ expr).rep(0, ",") ~/ "}").map(kvs => Expr.Dict(kvs.toMap))
 
-  def callExpr[p: P]: P[Expr]      = P(str | dict | local | func | ident)
+  def callExpr[p: P]: P[Expr]      = P(num | str | dict | local | func | ident)
   def call[p: P]:     P[Seq[Expr]] = P("(" ~/ expr.rep(0, ",") ~ ")")
 
   def prefixExpr[p: P]: P[Expr] = P(callExpr ~ call.rep).map { case (left, items) =>
@@ -52,6 +53,19 @@ object Parser:
       fastparse.parse("""{"a": "b", "cde": id, "nested": {}}""", dict(_)),
       fastparse.parse("""{"a": "A", "b": "bee"}""", expr(_)),
       fastparse.parse("""f()(a) + g(b, c)""", expr(_)),
-      fastparse.parse("""local thing = "kay"; { "f": function(a) a + a, "nested": {"k": "v"}}""", expr(_))
+      fastparse.parse("""local thing = "kay"; { "f": function(a) a + a, "nested": {"k": "v"}}""", expr(_)),
+
+      // Case for exercise 1
+      fastparse.parse("""local thing = 100; """, expr(_)),
+      fastparse.parse(
+        """|local bonus = 15000;
+           |local person = function (name, baseSalary) {
+           | "name": name,
+           | "totalSalary": baseSalary + bonus
+           |};
+           |{"person1": person("Alice", 10000), "person2": person("Bob", 20000)}
+           |""".stripMargin,
+        expr(_)
+      )
     ).foreach(println)
   }
