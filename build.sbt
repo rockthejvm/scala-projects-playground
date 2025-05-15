@@ -1,8 +1,6 @@
-name := "scala-projects-playground"
-
-version := "0.1"
-
-scalaVersion := "3.3.4"
+name         := "scala-projects-playground"
+version      := "0.1"
+scalaVersion := "3.7.0"
 
 libraryDependencies ++= Seq(
   "com.lihaoyi" %% "requests"  % "0.9.0",
@@ -12,7 +10,7 @@ libraryDependencies ++= Seq(
   "com.lihaoyi" %% "cask"      % "0.10.2",
   // Java libraries
   // scraping
-  "org.jsoup" % "jsoup" % "1.19.1",
+  "org.jsoup" % "jsoup" % "1.20.1",
   // markdown
   "org.commonmark" % "commonmark" % "0.24.0",
   // http apis
