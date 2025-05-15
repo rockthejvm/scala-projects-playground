@@ -10,7 +10,7 @@ import java.util.concurrent.ConcurrentHashMap
 object MinApp extends cask.MainRoutes:
   private final val BootstrapCss = "https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.css"
 
-  private val dataDir = os.pwd / "data"
+  private val dataDir = os.home / "data"
   os.makeDir.all(dataDir)
   private val database: ch.vorburger.mariadb4j.DB   = Database.startMySQL(dataDir.toIO)
   private val ctx:      MysqlJdbcContext[LowerCase] = Database.initDb(database, "testdb")
