@@ -1,0 +1,33 @@
+body {
+  margin: 0 auto;
+  max-width: 800px;
+  padding-block: 40px;
+  margin-block: 40px;
+  padding-inline: 20px;
+  border: 1px solid #ccc;
+  box-shadow: 0 5px 5px 5px #ccc;
+}
+
+h1 {
+  border-bottom: 1px solid #eee;
+  margin-bottom: 20px;
+}
+
+input[type=text] {
+  padding-inline: 5px;
+}
+
+#error {
+  min-height: 20px;
+  text-align: center;
+  color: red;
+  font-size: 75%;
+}
+
+#chat-form {
+  text-align: center;
+  margin-top: 25px;
+  border: 1px solid #eee;
+  padding-block: 20px;
+  box-shadow: 2px 2px #eee;
+}
