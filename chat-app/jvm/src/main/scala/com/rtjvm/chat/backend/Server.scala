@@ -14,6 +14,8 @@ object Server extends cask.MainRoutes {
   private val database      = new Database("testdb", createDataDir())
   private val wsConnections = ConcurrentHashMap.newKeySet[cask.WsChannelActor]()
 
+  private val mysql = new MySql("chatdb")
+
   @cask.staticFiles("/static")
   def staticFileRoutes() = "chat-app/js/static"
 
@@ -24,6 +26,7 @@ object Server extends cask.MainRoutes {
     else {
       database.saveMsg(Message(name = name, msg = msg))
       val msgs     = database.messages
+      val ms       = mysql.messages
       val msgsJson = write(msgs)
       wsConnections.forEach(_.send(cask.Ws.Text(msgsJson)))
       ujson.Obj("success" -> true, "messages" -> writeJs(msgs))
