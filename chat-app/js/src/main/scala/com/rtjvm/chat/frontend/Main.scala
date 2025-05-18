@@ -4,7 +4,6 @@ import com.rtjvm.chat.frontend.DomUtils.*
 import com.rtjvm.chat.shared.models.*
 import org.scalajs.dom
 import org.scalajs.dom.{HttpMethod, WebSocket, html}
-import scalatags.JsDom.all.*
 import upickle.default.*
 
 import scala.scalajs.js
@@ -17,7 +16,6 @@ object Main extends App {
   private val sendBtn     = getByIdAs[html.Button]("send")
   private val messagesDiv = getByIdAs[html.Div]("messages")
   private val errorDiv    = dom.document.getElementById("error")
-  private val socket      = new WebSocket("ws://localhost:8080/subscribe")
 
   assert(chatForm != null, "Chat form not found")
   assert(senderInput != null, "Name input not found")
@@ -26,6 +24,40 @@ object Main extends App {
   assert(errorDiv != null, "Greeting div not found")
 
   private val statusBar = new StatusBar(errorDiv.asInstanceOf[dom.html.Element])
+  private val socket = new WebSocket("ws://localhost:8080/subscribe")
+
+  dom.document
+    .getElementById("search-input")
+    .addEventListener(
+      "keydown",
+      (event: dom.KeyboardEvent) =>
+        if (event.key == "Enter") {
+          val searchInput = event.target.asInstanceOf[dom.HTMLInputElement]
+          val searchTerm  = searchInput.value.trim
+
+          val requestInit = new dom.RequestInit {
+            method  = HttpMethod.GET
+            headers = js.Dictionary("Content-Type" -> "application/json")
+          }
+
+          dom
+            .fetch(s"$ApiServer/messages/$searchTerm", requestInit)
+            .`then` { response =>
+              response
+                .text()
+                .`then` { text =>
+                  try {
+                    val messages = read[Seq[Message]](text) // .filter(_.sender.contains(searchTerm))
+                    renderMessages(messages)
+                  } catch {
+                    case e: Exception =>
+                      System.err.println(s"Error parsing response: ${e.getMessage}")
+                      statusBar.setError("Error sending message")
+                  }
+                }
+            }
+        }
+    )
 
   sendBtn.addEventListener(
     "click",

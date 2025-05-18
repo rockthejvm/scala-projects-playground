@@ -13,6 +13,19 @@ object Server extends cask.MainRoutes {
   private val wsConnections = ConcurrentHashMap.newKeySet[cask.WsChannelActor]()
   private val mysql         = new MySql("chatdb", createDataDir())
 
+  @cask.getJson("/messages")
+  def queryAllMessages(): Seq[Message] =
+    mysql.messages.map(m => Message(m.id, m.sender, m.msg, m.sentTs))
+
+  @cask.getJson("/messages/:searchTerm")
+  def queryMessages(searchTerm: String): Seq[Message] = {
+    val messages =
+      if searchTerm.isBlank then mysql.messages
+      else mysql.messages.filter(_.sender.contains(searchTerm))
+
+    messages.map(m => Message(m.id, m.sender, m.msg, m.sentTs))
+  }
+
   @cask.postJson("/chat")
   def postChatMsg(sender: String, msg: String, timestamp: Option[Long] = None): ujson.Value =
     (sender.trim, msg.trim) match
