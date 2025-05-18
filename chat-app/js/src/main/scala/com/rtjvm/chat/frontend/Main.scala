@@ -24,7 +24,7 @@ object Main extends App {
   assert(errorDiv != null, "Greeting div not found")
 
   private val statusBar = new StatusBar(errorDiv.asInstanceOf[dom.html.Element])
-  private val socket = new WebSocket("ws://localhost:8080/subscribe")
+  private val socket    = new WebSocket("ws://localhost:8080/subscribe")
 
   dom.document
     .getElementById("search-input")
@@ -47,7 +47,7 @@ object Main extends App {
                 .text()
                 .`then` { text =>
                   try {
-                    val messages = read[Seq[Message]](text) // .filter(_.sender.contains(searchTerm))
+                    val messages = read[Seq[Message]](text)
                     renderMessages(messages)
                   } catch {
                     case e: Exception =>

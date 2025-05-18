@@ -19,11 +19,7 @@ object Server extends cask.MainRoutes {
 
   @cask.getJson("/messages/:searchTerm")
   def queryMessages(searchTerm: String): Seq[Message] = {
-    val messages =
-      if searchTerm.isBlank then mysql.messages
-      else mysql.messages.filter(_.sender.contains(searchTerm))
-
-    messages.map(m => Message(m.id, m.sender, m.msg, m.sentTs))
+    mysql.messages(searchTerm).map(m => Message(m.id, m.sender, m.msg, m.sentTs))
   }
 
   @cask.postJson("/chat")

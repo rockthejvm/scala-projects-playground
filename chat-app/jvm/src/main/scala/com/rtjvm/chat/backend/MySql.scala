@@ -21,6 +21,13 @@ class MySql(dbName: String, dataDir: File) {
     db.run(Msg.select)
   }
 
+  def messages(sender: String): Seq[Msg[Sc]] =
+    if sender.isBlank then messages
+    else
+      client.transaction { db =>
+        db.run(Msg.select.filter(_.sender.contains(sender)))
+      }
+
   def saveMsg(sender: String, msg: String, timestamp: Long): Unit = client.transaction { db =>
     val ts = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneOffset.UTC)
     db.run(Msg.insert.columns(_.sender := sender, _.msg := msg, _.sentTs := ts))

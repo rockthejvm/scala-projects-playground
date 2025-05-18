@@ -10,4 +10,4 @@ object Message:
   implicit val rw: ReadWriter[Message] = macroRW
 
   def apply(id: Long, sender: String, msg: String, timestamp: LocalDateTime): Message =
-    new Message(id, sender, msg, timestamp.toEpochSecond(ZoneOffset.UTC))
+    new Message(id, sender, msg, timestamp.toInstant(ZoneOffset.UTC).toEpochMilli)
