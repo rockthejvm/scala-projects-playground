@@ -6,6 +6,8 @@ import scalatags.Text.all.*
 import upickle.default.*
 
 import java.io.File
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.ConcurrentHashMap
 
 object Server extends cask.MainRoutes {
@@ -14,20 +16,20 @@ object Server extends cask.MainRoutes {
   private val mysql         = new MySql("chatdb", createDataDir())
 
   @cask.postJson("/chat")
-  def postChatMsg(sender: String, msg: String): ujson.Value =
+  def postChatMsg(sender: String, msg: String, timestamp: Option[Long] = None): ujson.Value =
     (sender.trim, msg.trim) match
       case ("", _) => writeJs(ChatResponse.error("Name cannot be empty"))
       case (_, "") => writeJs(ChatResponse.error("Message cannot be empty"))
       case (sender, msg) =>
-        mysql.saveMsg(sender, msg)
-        val msgs    = mysql.messages.map(m => Message(m.sender, m.msg))
+        mysql.saveMsg(sender, msg, timestamp.getOrElse(System.currentTimeMillis))
+        val msgs    = mysql.messages.map(m => Message(m.sender, m.msg, m.sentTs))
         val payload = cask.Ws.Text(write(msgs))
         wsConnections.forEach(_.send(payload))
         writeJs(ChatResponse.success(msgs.toList))
 
   @cask.websocket("/subscribe")
   def subscribe(): WsHandler = cask.WsHandler { connection =>
-    val ms = mysql.messages.map(m => Message(m.sender, m.msg))
+    val ms = mysql.messages.map(m => Message(m.sender, m.msg, m.sentTs))
 
     connection.send(cask.Ws.Text(write(ms)))
     wsConnections.add(connection)
@@ -46,7 +48,8 @@ object Server extends cask.MainRoutes {
           link(rel := "stylesheet", href := "static/main.css")
         ),
         body(
-          h1("Hello World")
+          h1("Hello World"),
+          p(Utils.token)
         )
       )
     )

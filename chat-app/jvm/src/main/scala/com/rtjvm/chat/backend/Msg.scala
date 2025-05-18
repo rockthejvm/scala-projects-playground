@@ -4,6 +4,6 @@ import scalasql.*
 
 /** Represents a row in msg table in the database
   */
-case class Msg[T[_]](sender: T[String], msg: T[String])
+case class Msg[T[_]](sender: T[String], msg: T[String], sentTs: T[Long])
 
 object Msg extends Table[Msg]()

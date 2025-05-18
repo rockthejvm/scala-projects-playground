@@ -53,9 +53,8 @@ object Main extends App {
               .text()
               .`then` { (text: String) =>
                 try {
-                  messagesDiv.innerHTML = read[ChatResponse](text).messages
-                    .map(m => p(b(m.sender), ": ", m.msg).toString())
-                    .mkString
+                  val messages = read[ChatResponse](text).messages
+                  renderMessages(messages)
 
                   msgInput.value = ""
                   msgInput.focus()
@@ -87,9 +86,8 @@ object Main extends App {
 
   socket.onmessage = { (event: dom.MessageEvent) =>
     try {
-      messagesDiv.innerHTML = read[Seq[Message]](event.data.toString)
-        .map(m => p(b(m.sender), ": ", m.msg).toString())
-        .mkString
+      val messages = read[Seq[Message]](event.data.toString)
+      renderMessages(messages)
     } catch {
       case e: Exception =>
         System.err.println(s"Error processing WebSocket message: ${e.getMessage}")
@@ -100,6 +98,14 @@ object Main extends App {
   socket.onerror = { (event: dom.Event) =>
     println(s"WebSocket error: ${event.toString}")
   }
+
+  private def renderMessages(messages: Seq[Message]): Unit = {
+    messagesDiv.innerHTML = messages
+      .map(DomUtils.fragFor(_).toString)
+      .mkString
+  }
+
+
 
   println("Hello from Scala.js frontend!")
 }

@@ -2,9 +2,9 @@ package com.rtjvm.chat.backend
 
 import ch.vorburger.mariadb4j.{DB, DBConfigurationBuilder}
 import com.mysql.cj.jdbc.MysqlDataSource
-import scalasql.core.{Config, DbClient}
+import scalasql.*
 import scalasql.MySqlDialect.*
-import scalasql.Sc
+import scalasql.core.{Config, DbClient}
 
 import java.io.File
 
@@ -19,8 +19,8 @@ class MySql(dbName: String, dataDir: File) {
     db.run(Msg.select)
   }
 
-  def saveMsg(sender: String, msg: String): Unit = client.transaction { db =>
-    db.run(Msg.insert.values(Msg[Sc](sender, msg)))
+  def saveMsg(sender: String, msg: String, timestamp: Long): Unit = client.transaction { db =>
+    db.run(Msg.insert.values(Msg[Sc](sender, msg, timestamp)))
   }
 
   private def initializeDb(dbName: String, dbPort: Int) = {
@@ -28,7 +28,13 @@ class MySql(dbName: String, dataDir: File) {
 
     createClient(dbName, dbPort) { client =>
       client.transaction { db =>
-        db.updateRaw("create table if not exists msg (sender text not null, msg text not null)")
+        db.updateRaw(
+          """
+            |create table if not exists msg (
+            |sender text not null, 
+            |msg text not null, 
+            |sent_ts datetime default current_timestamp)""".stripMargin
+        )
       }
     }
   }
