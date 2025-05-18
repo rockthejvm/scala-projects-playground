@@ -1,11 +1,8 @@
 package com.rtjvm.chat.shared.models
 
-import io.circe.{Decoder, Encoder}
-import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
+import upickle.default.*
 
 case class Greeting(message: String)
 
-object Greeting {
-  implicit val decoder: Decoder[Greeting] = deriveDecoder[Greeting]
-  implicit val encoder: Encoder[Greeting] = deriveEncoder[Greeting]
-}
+object Greeting:
+  implicit val rw: ReadWriter[Greeting] = macroRW
