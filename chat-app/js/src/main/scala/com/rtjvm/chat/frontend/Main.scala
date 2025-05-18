@@ -38,7 +38,7 @@ object Main extends App {
         msgInput.focus()
       } else {
         statusBar.clear()
-        val message = Message(name = senderInput.value, msg = msgInput.value)
+        val message = Message(sender = senderInput.value, msg = msgInput.value)
 
         val requestInit = new dom.RequestInit {
           method  = HttpMethod.POST
@@ -54,8 +54,11 @@ object Main extends App {
               .`then` { (text: String) =>
                 try {
                   messagesDiv.innerHTML = read[ChatResponse](text).messages
-                    .map(m => p(b(m.name), ": ", m.msg).toString())
+                    .map(m => p(b(m.sender), ": ", m.msg).toString())
                     .mkString
+
+                  msgInput.value = ""
+                  msgInput.focus()
                 } catch {
                   case e: Exception =>
                     System.err.println(s"Error parsing response: ${e.getMessage}")
@@ -85,7 +88,7 @@ object Main extends App {
   socket.onmessage = { (event: dom.MessageEvent) =>
     try {
       messagesDiv.innerHTML = read[Seq[Message]](event.data.toString)
-        .map(m => p(b(m.name), ": ", m.msg).toString())
+        .map(m => p(b(m.sender), ": ", m.msg).toString())
         .mkString
     } catch {
       case e: Exception =>

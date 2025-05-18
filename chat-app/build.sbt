@@ -31,7 +31,7 @@ lazy val app =
     .jvmSettings(
       libraryDependencies ++=
         "com.lihaoyi"             %% "cask"                 % "0.10.2" ::
-          "io.getquill"           %% "quill-jdbc"           % "4.8.6" ::
+          "com.lihaoyi"           %% "scalasql"             % "0.1.19" ::
           "com.lihaoyi"           %% "os-lib"               % "0.11.4" ::
           "ch.vorburger.mariaDB4j" % "mariaDB4j"            % "3.2.0" ::
           "mysql"                  % "mysql-connector-java" % "8.0.33" ::
