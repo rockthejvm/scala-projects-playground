@@ -6,8 +6,6 @@ import scalatags.Text.all.*
 import upickle.default.*
 
 import java.io.File
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import java.util.concurrent.ConcurrentHashMap
 
 object Server extends cask.MainRoutes {
@@ -22,14 +20,14 @@ object Server extends cask.MainRoutes {
       case (_, "") => writeJs(ChatResponse.error("Message cannot be empty"))
       case (sender, msg) =>
         mysql.saveMsg(sender, msg, timestamp.getOrElse(System.currentTimeMillis))
-        val msgs    = mysql.messages.map(m => Message(m.sender, m.msg, m.sentTs))
+        val msgs    = mysql.messages.map(m => Message(m.id, m.sender, m.msg, m.sentTs))
         val payload = cask.Ws.Text(write(msgs))
         wsConnections.forEach(_.send(payload))
         writeJs(ChatResponse.success(msgs.toList))
 
   @cask.websocket("/subscribe")
   def subscribe(): WsHandler = cask.WsHandler { connection =>
-    val ms = mysql.messages.map(m => Message(m.sender, m.msg, m.sentTs))
+    val ms = mysql.messages.map(m => Message(m.id, m.sender, m.msg, m.sentTs))
 
     connection.send(cask.Ws.Text(write(ms)))
     wsConnections.add(connection)

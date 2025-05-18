@@ -7,6 +7,8 @@ import scalasql.MySqlDialect.*
 import scalasql.core.{Config, DbClient}
 
 import java.io.File
+import java.time.{Instant, LocalDateTime, ZoneOffset}
+import java.time.format.DateTimeFormatter
 
 class MySql(dbName: String, dataDir: File) {
 
@@ -20,7 +22,8 @@ class MySql(dbName: String, dataDir: File) {
   }
 
   def saveMsg(sender: String, msg: String, timestamp: Long): Unit = client.transaction { db =>
-    db.run(Msg.insert.values(Msg[Sc](sender, msg, timestamp)))
+    val ts = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneOffset.UTC)
+    db.run(Msg.insert.columns(_.sender := sender, _.msg := msg, _.sentTs := ts))
   }
 
   private def initializeDb(dbName: String, dbPort: Int) = {

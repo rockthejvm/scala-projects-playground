@@ -38,7 +38,7 @@ object Main extends App {
         msgInput.focus()
       } else {
         statusBar.clear()
-        val message = Message(sender = senderInput.value, msg = msgInput.value)
+        val message = NewMessage(sender = senderInput.value, msg = msgInput.value)
 
         val requestInit = new dom.RequestInit {
           method  = HttpMethod.POST
@@ -104,8 +104,6 @@ object Main extends App {
       .map(DomUtils.fragFor(_).toString)
       .mkString
   }
-
-
 
   println("Hello from Scala.js frontend!")
 }

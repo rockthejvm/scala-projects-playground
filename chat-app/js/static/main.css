@@ -76,7 +76,7 @@ input[type=text] {
   flex-shrink: 1;
   flex-basis: auto;
   order: 0;
-  align-self: auto;
+  align-self: center;
   width: auto;
   height: auto;
 
