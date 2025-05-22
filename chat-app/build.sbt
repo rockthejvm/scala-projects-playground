@@ -30,11 +30,14 @@ lazy val app =
     )
     .jvmSettings(
       libraryDependencies ++=
-        "com.lihaoyi"             %% "cask"                 % "0.10.2" ::
-          "com.lihaoyi"           %% "scalasql"             % "0.1.19" ::
-          "com.lihaoyi"           %% "os-lib"               % "0.11.4" ::
-          "ch.vorburger.mariaDB4j" % "mariaDB4j"            % "3.2.0" ::
-          "mysql"                  % "mysql-connector-java" % "8.0.33" ::
-          "com.zaxxer"             % "HikariCP"             % "5.1.0" ::
+        "com.lihaoyi"               %% "cask"                 % "0.10.2" ::
+          "com.lihaoyi"             %% "scalasql"             % "0.1.19" ::
+          "com.lihaoyi"             %% "os-lib"               % "0.11.4" ::
+          "ch.vorburger.mariaDB4j"   % "mariaDB4j"            % "3.2.0" ::
+          "mysql"                    % "mysql-connector-java" % "8.0.33" ::
+          "com.zaxxer"               % "HikariCP"             % "5.1.0" ::
+          "org.postgresql"           % "postgresql"           % "42.7.5" ::
+          "com.opentable.components" % "otj-pg-embedded"      % "1.1.1" ::
+          "com.impossibl.pgjdbc-ng"  % "pgjdbc-ng"            % "0.8.9" ::
           Nil
     )

@@ -12,10 +12,13 @@ object Server extends cask.MainRoutes {
 
   private val wsConnections = ConcurrentHashMap.newKeySet[cask.WsChannelActor]()
   private val mysql         = new MySql("chatdb", createDataDir())
+  private val postgres      = new Database("chatdb", "postgres", 5432)
 
   @cask.getJson("/messages")
-  def queryAllMessages(): Seq[Message] =
+  def queryAllMessages(): Seq[Message] = {
+    postgres.messages.foreach(println)
     mysql.messages.map(m => Message(m.id, m.sender, m.msg, m.sentTs))
+  }
 
   @cask.getJson("/messages/:searchTerm")
   def queryMessages(searchTerm: String): Seq[Message] = {
