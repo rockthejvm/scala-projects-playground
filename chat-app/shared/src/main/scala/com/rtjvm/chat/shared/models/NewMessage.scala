@@ -4,10 +4,10 @@ import upickle.default.*
 
 import java.time.{LocalDateTime, ZoneOffset}
 
-case class NewMessage(sender: String, msg: String, timestamp: Long)
+case class NewMessage(sender: String, msg: String, parent: Option[Long], timestamp: Long)
 
 object NewMessage:
   implicit val rw: ReadWriter[NewMessage] = macroRW
 
-  def apply(sender: String, msg: String): NewMessage =
-    NewMessage(sender, msg, System.currentTimeMillis)
+  def apply(sender: String, msg: String, parent: Option[Long] = None): NewMessage =
+    new NewMessage(sender, msg, parent, System.currentTimeMillis)

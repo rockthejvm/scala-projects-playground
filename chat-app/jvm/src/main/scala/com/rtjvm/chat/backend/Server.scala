@@ -5,38 +5,45 @@ import com.rtjvm.chat.shared.models.*
 import scalatags.Text.all.*
 import upickle.default.*
 
-import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
 object Server extends cask.MainRoutes {
 
   private val wsConnections = ConcurrentHashMap.newKeySet[cask.WsChannelActor]()
-  private val mysql         = new MySql("chatdb", createDataDir())
+  private val postgres      = new Postgres(createDataDir(), "chatdb", 5432)
 
   @cask.getJson("/messages")
-  def queryAllMessages(): Seq[Message] =
-    mysql.messages.map(m => Message(m.id, m.sender, m.msg, m.sentTs))
+  def queryAllMessages(): Seq[Message] = {
+    postgres.messages.map(m => Message(m.id, m.sender, m.msg, m.sentTs))
+  }
 
   @cask.getJson("/messages/:searchTerm")
   def queryMessages(searchTerm: String): Seq[Message] = {
-    mysql.messages(searchTerm).map(m => Message(m.id, m.sender, m.msg, m.sentTs))
+    postgres.messages(searchTerm).map(m => Message(m.id, m.sender, m.msg, m.sentTs))
   }
 
   @cask.postJson("/chat")
-  def postChatMsg(sender: String, msg: String, timestamp: Option[Long] = None): ujson.Value =
+  def postChatMsg(
+      sender:    String,
+      msg:       String,
+      parent:    Option[Long] = None,
+      timestamp: Option[Long] = None
+  ): ujson.Value =
     (sender.trim, msg.trim) match
-      case ("", _) => writeJs(ChatResponse.error("Name cannot be empty"))
-      case (_, "") => writeJs(ChatResponse.error("Message cannot be empty"))
+      case ("", _)       => writeJs(ChatResponse.error("Name cannot be empty"))
+      case (_, "")       => writeJs(ChatResponse.error("Message cannot be empty"))
       case (sender, msg) =>
-        mysql.saveMsg(sender, msg, timestamp.getOrElse(System.currentTimeMillis))
-        val msgs    = mysql.messages.map(m => Message(m.id, m.sender, m.msg, m.sentTs))
+        postgres.saveMsg(NewMessage(sender, msg, parent.filter(_ > 0)))
+
+        val msgs    = postgres.messages.map(m => Message(m.id, m.sender, m.msg, m.sentTs, m.parent))
         val payload = cask.Ws.Text(write(msgs))
+
         wsConnections.forEach(_.send(payload))
         writeJs(ChatResponse.success(msgs.toList))
 
   @cask.websocket("/subscribe")
   def subscribe(): WsHandler = cask.WsHandler { connection =>
-    val ms = mysql.messages.map(m => Message(m.id, m.sender, m.msg, m.sentTs))
+    val ms = postgres.messages.map(m => Message(m.id, m.sender, m.msg, m.sentTs))
 
     connection.send(cask.Ws.Text(write(ms)))
     wsConnections.add(connection)
@@ -69,10 +76,10 @@ object Server extends cask.MainRoutes {
   @cask.staticFiles("/static")
   def staticFileRoutes() = "chat-app/js/static"
 
-  private def createDataDir(): File =
-    val dataDir = os.home / "data"
+  private def createDataDir(): String =
+    val dataDir = os.home / "pgdata"
     os.makeDir.all(dataDir)
-    dataDir.toIO
+    dataDir.toString
 
   initialize()
 }

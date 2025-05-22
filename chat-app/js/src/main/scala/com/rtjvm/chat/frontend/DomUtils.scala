@@ -16,6 +16,7 @@ object DomUtils {
 
   def fragFor(m: Message): JsDom.TypedTag[Div] =
     div(cls := "message")(
+      span(cls := "id")(s"(${m.id})"),
       span(cls := "sender")(s"${m.sender}:"),
       span(cls := "msg")(m.msg),
       span(cls := "timestamp")(new Date(m.timestamp).toISOString())
