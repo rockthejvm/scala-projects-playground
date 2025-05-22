@@ -152,8 +152,7 @@ object Main extends App {
       for (msg <- msgMap.getOrElse(parent, Nil))
         yield div(
           fragFor(msg),
-          // p("#", msg.id, " ", b(msg.sender), " ", msg.msg, "   ", msg.timestamp),
-          div(paddingLeft := 25)(messageListFrag(Some(msg.id)))
+          div(paddingLeft := 15)(messageListFrag(Some(msg.id)))
         )
 
     messageListFrag(None)
