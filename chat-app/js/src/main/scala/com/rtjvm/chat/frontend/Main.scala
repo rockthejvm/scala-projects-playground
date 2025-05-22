@@ -3,23 +3,28 @@ package com.rtjvm.chat.frontend
 import com.rtjvm.chat.frontend.DomUtils.*
 import com.rtjvm.chat.shared.models.*
 import org.scalajs.dom
+import org.scalajs.dom.html.Div
 import org.scalajs.dom.{HttpMethod, WebSocket, html}
+import scalatags.JsDom
+import scalatags.JsDom.all._
 import upickle.default.*
 
 import scala.scalajs.js
 
 object Main extends App {
-  private val ApiServer   = "http://localhost:8080"
-  private val chatForm    = getByIdAs[html.Form]("chat-form")
-  private val senderInput = getByIdAs[html.Input]("sender")
-  private val msgInput    = getByIdAs[html.Input]("message")
-  private val sendBtn     = getByIdAs[html.Button]("send")
-  private val messagesDiv = getByIdAs[html.Div]("messages")
-  private val errorDiv    = dom.document.getElementById("error")
+  private val ApiServer    = "http://localhost:8080"
+  private val chatForm     = getByIdAs[html.Form]("chat-form")
+  private val senderInput  = getByIdAs[html.Input]("sender")
+  private val msgInput     = getByIdAs[html.Input]("message")
+  private val replyToInput = getByIdAs[html.Input]("reply-to")
+  private val sendBtn      = getByIdAs[html.Button]("send")
+  private val messagesDiv  = getByIdAs[html.Div]("messages")
+  private val errorDiv     = dom.document.getElementById("error")
 
   assert(chatForm != null, "Chat form not found")
   assert(senderInput != null, "Name input not found")
   assert(msgInput != null, "Message input not found")
+  assert(replyToInput != null, "Reply-To input not found")
   assert(sendBtn != null, "Greet button not found")
   assert(errorDiv != null, "Greeting div not found")
 
@@ -70,7 +75,12 @@ object Main extends App {
         msgInput.focus()
       } else {
         statusBar.clear()
-        val message = NewMessage(sender = senderInput.value, msg = msgInput.value)
+        val message =
+          NewMessage(
+            sender = senderInput.value,
+            msg    = msgInput.value,
+            parent = replyToInput.value.toLongOption
+          )
 
         val requestInit = new dom.RequestInit {
           method  = HttpMethod.POST
@@ -132,9 +142,20 @@ object Main extends App {
   }
 
   private def renderMessages(messages: Seq[Message]): Unit = {
-    messagesDiv.innerHTML = messages
-      .map(DomUtils.fragFor(_).toString)
-      .mkString
+    messagesDiv.innerHTML = messageList(messages).map(_.toString).mkString
+  }
+
+  private def messageList(messages: Seq[Message]) = {
+    val msgMap = messages.groupBy(_.parent)
+
+    def messageListFrag(parent: Option[Long] = None): Seq[JsDom.TypedTag[Div]] =
+      for (msg <- msgMap.getOrElse(parent, Nil))
+        yield div(
+          fragFor(msg),
+          div(paddingLeft := 15)(messageListFrag(Some(msg.id)))
+        )
+
+    messageListFrag(None)
   }
 
   println("Hello from Scala.js frontend!")

@@ -43,7 +43,7 @@ object Server extends cask.MainRoutes {
 
   @cask.websocket("/subscribe")
   def subscribe(): WsHandler = cask.WsHandler { connection =>
-    val ms = postgres.messages.map(m => Message(m.id, m.sender, m.msg, m.sentTs))
+    val ms = postgres.messages.map(m => Message(m.id, m.sender, m.msg, m.sentTs, m.parent))
 
     connection.send(cask.Ws.Text(write(ms)))
     wsConnections.add(connection)
