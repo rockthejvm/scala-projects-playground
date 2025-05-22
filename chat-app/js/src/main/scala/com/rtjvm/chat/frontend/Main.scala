@@ -53,6 +53,7 @@ object Main extends App {
                 .`then` { text =>
                   try {
                     val messages = read[Seq[Message]](text)
+                    println(s"Received messages: $messages")
                     renderMessages(messages)
                   } catch {
                     case e: Exception =>
