@@ -1,5 +1,12 @@
 # Chat App
 
+## Stack
+
+- Postgres
+- ScalaSql
+- Scalatags
+- Scala.js
+
 ## Running the application
 
 1. Run the client with `sbt "~appJS/fastOptJS"` to keep the client files up to date with the changes you make to `js (appJS)` project.
@@ -17,7 +24,6 @@
 ## Differences:
 
 - The project does not POST to the root path `/` to send a chat message instead POSTs to the `/chat` endpoint with a JSON body.
-- The project uses MySQL instead of Postgres as described in the book. Reason: Started the project with Quill which had problems starting Postgres and interacting with it. Later, as requested, switched to Li Haoyi's ScalaSql.
 
 ## Exercises
 
@@ -31,18 +37,18 @@ Not using `synchronized` but using a `ConcurrentHashMap`.
 
 **The online examples so far provide a simple test suite, that uses `String.contains` .... Use the Jsoup library we saw Chapter 11: Scraping Websites to make ... tag**
 
-Not Implemented!
+Not Implemented! TBD!
 
 **Keep track each message's send time and date in the database, and display it in the user interface**
 
-See `MySql#initializeDb`
+See `Postgres#initDb`
 
-**Add the ability to reply directly to existing chat messages, ... nested arbitrarily deeply to form
-a tree-shaped "threaded" discussion**
+**Add the ability to reply directly to existing chat messages, ... nested arbitrarily deeply to form a tree-shaped "threaded" discussion**
 
-Not yet implemented.
+- Look for `parent` on the server side
+- For client side, see `Main.scala` (`Main#messageList`)
 
 **One limitation of the current push-update mechanism is that it can only updates to
 browsers connected to the same webserver. Make use of Postgres's LISTEN/NOTIFY feature ... register callbacks on these events**
 
-Not implemented because using MySQL. Let me know if you want me to switch to Postgres.
+See `PostgresListener`
