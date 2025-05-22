@@ -30,8 +30,8 @@ object Server extends cask.MainRoutes {
       timestamp: Option[Long] = None
   ): ujson.Value =
     (sender.trim, msg.trim) match
-      case ("", _)       => writeJs(ChatResponse.error("Name cannot be empty"))
-      case (_, "")       => writeJs(ChatResponse.error("Message cannot be empty"))
+      case ("", _) => writeJs(ChatResponse.error("Name cannot be empty"))
+      case (_, "") => writeJs(ChatResponse.error("Message cannot be empty"))
       case (sender, msg) =>
         postgres.saveMsg(NewMessage(sender, msg, parent.filter(_ > 0)))
 
@@ -43,7 +43,7 @@ object Server extends cask.MainRoutes {
 
   @cask.websocket("/subscribe")
   def subscribe(): WsHandler = cask.WsHandler { connection =>
-    val ms = postgres.messages.map(m => Message(m.id, m.sender, m.msg, m.sentTs))
+    val ms = postgres.messages.map(m => Message(m.id, m.sender, m.msg, m.sentTs, m.parent))
 
     connection.send(cask.Ws.Text(write(ms)))
     wsConnections.add(connection)
