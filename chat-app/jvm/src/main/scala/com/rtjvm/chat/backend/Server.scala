@@ -5,24 +5,21 @@ import com.rtjvm.chat.shared.models.*
 import scalatags.Text.all.*
 import upickle.default.*
 
-import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
 object Server extends cask.MainRoutes {
 
   private val wsConnections = ConcurrentHashMap.newKeySet[cask.WsChannelActor]()
-  private val mysql         = new MySql("chatdb", createDataDir())
-  private val postgres      = new Database("chatdb", "postgres", 5432)
+  private val postgres      = new Postgres(createDataDir(), "chatdb", 5432)
 
   @cask.getJson("/messages")
   def queryAllMessages(): Seq[Message] = {
-    postgres.messages.foreach(println)
-    mysql.messages.map(m => Message(m.id, m.sender, m.msg, m.sentTs))
+    postgres.messages.map(m => Message(m.id, m.sender, m.msg, m.sentTs))
   }
 
   @cask.getJson("/messages/:searchTerm")
   def queryMessages(searchTerm: String): Seq[Message] = {
-    mysql.messages(searchTerm).map(m => Message(m.id, m.sender, m.msg, m.sentTs))
+    postgres.messages(searchTerm).map(m => Message(m.id, m.sender, m.msg, m.sentTs))
   }
 
   @cask.postJson("/chat")
@@ -31,15 +28,17 @@ object Server extends cask.MainRoutes {
       case ("", _) => writeJs(ChatResponse.error("Name cannot be empty"))
       case (_, "") => writeJs(ChatResponse.error("Message cannot be empty"))
       case (sender, msg) =>
-        mysql.saveMsg(sender, msg, timestamp.getOrElse(System.currentTimeMillis))
-        val msgs    = mysql.messages.map(m => Message(m.id, m.sender, m.msg, m.sentTs))
+        postgres.saveMsg(sender, msg, timestamp.getOrElse(System.currentTimeMillis))
+
+        val msgs    = postgres.messages.map(m => Message(m.id, m.sender, m.msg, m.sentTs))
         val payload = cask.Ws.Text(write(msgs))
+
         wsConnections.forEach(_.send(payload))
         writeJs(ChatResponse.success(msgs.toList))
 
   @cask.websocket("/subscribe")
   def subscribe(): WsHandler = cask.WsHandler { connection =>
-    val ms = mysql.messages.map(m => Message(m.id, m.sender, m.msg, m.sentTs))
+    val ms = postgres.messages.map(m => Message(m.id, m.sender, m.msg, m.sentTs))
 
     connection.send(cask.Ws.Text(write(ms)))
     wsConnections.add(connection)
@@ -72,10 +71,10 @@ object Server extends cask.MainRoutes {
   @cask.staticFiles("/static")
   def staticFileRoutes() = "chat-app/js/static"
 
-  private def createDataDir(): File =
-    val dataDir = os.home / "data"
+  private def createDataDir(): String =
+    val dataDir = os.home / "pgdata"
     os.makeDir.all(dataDir)
-    dataDir.toIO
+    dataDir.toString
 
   initialize()
 }
