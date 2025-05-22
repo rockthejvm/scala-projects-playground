@@ -1,5 +1,6 @@
 package com.rtjvm.chat.backend
 
+import com.rtjvm.chat.shared.models.NewMessage
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import org.postgresql.ds.PGSimpleDataSource
 import scalasql.*
@@ -24,10 +25,17 @@ class Postgres(dataDir: String, dbName: String, dbPort: Int) {
         db.run(Msg.select.filter(_.sender.contains(sender)))
       }
 
-  def saveMsg(sender: String, msg: String, timestamp: Long): Unit = client.transaction { db =>
-    val ts = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneOffset.UTC)
-    db.run(Msg.insert.columns(_.sender := sender, _.msg := msg, _.sentTs := ts))
-  }
+  def saveMsg(msg: NewMessage): Unit =
+    client.transaction { db =>
+      val ts = LocalDateTime.ofInstant(Instant.ofEpochMilli(msg.timestamp), ZoneOffset.UTC)
+      db.run(Msg.insert.columns(_.sender := msg.sender, _.msg := msg.msg, _.parent := msg.parent, _.sentTs := ts))
+    }
+
+  def saveMsg(sender: String, msg: String, timestamp: Long): Unit =
+    client.transaction { db =>
+      val ts = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneOffset.UTC)
+      db.run(Msg.insert.columns(_.sender := sender, _.msg := msg, _.sentTs := ts))
+    }
 
   private def initDb(dbName: String, dbPort: Int) = {
     implicit val pgDialect: PostgresDialect = PostgresDialect
@@ -41,6 +49,7 @@ class Postgres(dataDir: String, dbName: String, dbPort: Int) {
            |  id serial primary key,
            |  sender text not null,
            |  msg text not null,
+           |  parent int,
            |  sent_ts timestamp not null
            |);
            |""".stripMargin

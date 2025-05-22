@@ -32,6 +32,11 @@ input[type=text] {
   box-shadow: 2px 2px #eee;
 }
 
+#chat-form #reply-to {
+  max-width: 50px;
+  text-align: right;
+}
+
 .message {
   display: flex;
   flex-direction: row;

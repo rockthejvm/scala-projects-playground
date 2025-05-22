@@ -23,14 +23,19 @@ object Server extends cask.MainRoutes {
   }
 
   @cask.postJson("/chat")
-  def postChatMsg(sender: String, msg: String, timestamp: Option[Long] = None): ujson.Value =
+  def postChatMsg(
+      sender:    String,
+      msg:       String,
+      parent:    Option[Long] = None,
+      timestamp: Option[Long] = None
+  ): ujson.Value =
     (sender.trim, msg.trim) match
-      case ("", _) => writeJs(ChatResponse.error("Name cannot be empty"))
-      case (_, "") => writeJs(ChatResponse.error("Message cannot be empty"))
+      case ("", _)       => writeJs(ChatResponse.error("Name cannot be empty"))
+      case (_, "")       => writeJs(ChatResponse.error("Message cannot be empty"))
       case (sender, msg) =>
-        postgres.saveMsg(sender, msg, timestamp.getOrElse(System.currentTimeMillis))
+        postgres.saveMsg(NewMessage(sender, msg, parent.filter(_ > 0)))
 
-        val msgs    = postgres.messages.map(m => Message(m.id, m.sender, m.msg, m.sentTs))
+        val msgs    = postgres.messages.map(m => Message(m.id, m.sender, m.msg, m.sentTs, m.parent))
         val payload = cask.Ws.Text(write(msgs))
 
         wsConnections.forEach(_.send(payload))
