@@ -11,6 +11,16 @@ object Server extends cask.MainRoutes {
 
   private val wsConnections = ConcurrentHashMap.newKeySet[cask.WsChannelActor]()
   private val postgres      = new Postgres(createDataDir(), "chatdb", 5432)
+  private val listener      = PostgresListener()
+
+  Runtime.getRuntime.addShutdownHook(new Thread {
+    override def run(): Unit = {
+      println("JVM is shutting down. Stopping listener...")
+      listener.stopListening() // Ensure the listener is stopped and the connection is closed
+    }
+  })
+
+  listener.startListening()
 
   @cask.getJson("/messages")
   def queryAllMessages(): Seq[Message] = {

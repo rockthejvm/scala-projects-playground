@@ -29,6 +29,7 @@ class Postgres(dataDir: String, dbName: String, dbPort: Int) {
     client.transaction { db =>
       val ts = LocalDateTime.ofInstant(Instant.ofEpochMilli(msg.timestamp), ZoneOffset.UTC)
       db.run(Msg.insert.columns(_.sender := msg.sender, _.msg := msg.msg, _.parent := msg.parent, _.sentTs := ts))
+      db.updateRaw("NOTIFY msg")
     }
 
   def saveMsg(sender: String, msg: String, timestamp: Long): Unit =
@@ -40,7 +41,7 @@ class Postgres(dataDir: String, dbName: String, dbPort: Int) {
   private def initDb(dbName: String, dbPort: Int) = {
     implicit val pgDialect: PostgresDialect = PostgresDialect
 
-    val client = new DbClient.DataSource(datasource(), new Config {})
+    val client = new DbClient.DataSource(datasource(), new Config {}, Seq.empty)
 
     client.transaction { db =>
       db.updateRaw(
