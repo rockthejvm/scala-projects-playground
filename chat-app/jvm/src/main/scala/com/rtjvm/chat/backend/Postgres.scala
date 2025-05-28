@@ -4,6 +4,7 @@ import com.rtjvm.chat.shared.models.NewMessage
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import org.postgresql.ds.PGSimpleDataSource
 import scalasql.*
+import scalasql.core.SqlStr.SqlStringSyntax
 import scalasql.core.{Config, DbClient}
 import scalasql.dialects.PostgresDialect
 import scalasql.dialects.PostgresDialect.*
@@ -14,16 +15,12 @@ class Postgres(dataDir: String, dbName: String, dbPort: Int) {
   private val db     = startPostgres(dataDir, dbPort)
   private val client = initDb(dbName, dbPort)
 
-  def messages: Seq[Msg[Sc]] = client.transaction { db =>
-    db.run(Msg.select)
-  }
+  def messages: Seq[Msg[Sc]] =
+    client.getAutoCommitClientConnection.runSql[Msg[Sc]](sql"select * from msg")
 
   def messages(sender: String): Seq[Msg[Sc]] =
     if sender.isBlank then messages
-    else
-      client.transaction { db =>
-        db.run(Msg.select.filter(_.sender.contains(sender)))
-      }
+    else client.getAutoCommitClientConnection.run(Msg.select.filter(_.sender.contains(sender)))
 
   def saveMsg(msg: NewMessage): Unit =
     client.transaction { db =>

@@ -54,7 +54,8 @@ object Main extends App {
                   try {
                     val messages = read[Seq[Message]](text)
                     println(s"Received messages: $messages")
-                    renderMessages(messages)
+                    if searchTerm.isBlank then renderMessages(messages)
+                    else renderFilteredMsgs(messages)
                   } catch {
                     case e: Exception =>
                       System.err.println(s"Error parsing response: ${e.getMessage}")
@@ -157,6 +158,13 @@ object Main extends App {
         )
 
     messageListFrag(None)
+  }
+
+  private def renderFilteredMsgs(messages: Seq[Message]): Unit = {
+    def formatMsgs: Seq[JsDom.TypedTag[Div]] =
+      for (msg <- messages) yield fragFor(msg)
+
+    messagesDiv.innerHTML = formatMsgs.map(_.toString).mkString
   }
 
   println("Hello from Scala.js frontend!")
