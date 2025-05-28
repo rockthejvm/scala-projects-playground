@@ -1,0 +1,95 @@
+body {
+  margin: 0 auto;
+  max-width: 800px;
+  padding-block: 40px;
+  margin-block: 40px;
+  padding-inline: 20px;
+  border: 1px solid #ccc;
+  box-shadow: 0 5px 5px 5px #ccc;
+}
+
+h1 {
+  border-bottom: 1px solid #eee;
+  margin-bottom: 20px;
+}
+
+input[type=text] {
+  padding-inline: 5px;
+}
+
+#error {
+  min-height: 20px;
+  text-align: center;
+  color: red;
+  font-size: 75%;
+}
+
+#chat-form {
+  text-align: center;
+  margin-top: 25px;
+  border: 1px solid #eee;
+  padding-block: 20px;
+  box-shadow: 2px 2px #eee;
+}
+
+#chat-form #reply-to {
+  max-width: 50px;
+  text-align: right;
+}
+
+.message {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  align-items: stretch;
+  align-content: flex-start;
+  gap: 15px;
+  margin-block: 10px;
+
+  background-color: #f0f0f0;
+  border-radius: 12px;
+  padding: 10px 14px;
+  word-wrap: break-word;
+  font-size: 14px;
+}
+
+.sender {
+  flex-grow: 0;
+  flex-shrink: 1;
+  flex-basis: auto;
+  order: 0;
+  align-self: auto;
+  width: 75px;
+  height: auto;
+  font-weight: bold;
+  overflow-x: hidden;
+}
+
+.msg {
+  flex-grow: 1;
+  flex-shrink: 1;
+  flex-basis: auto;
+  order: 0;
+  align-self: auto;
+  width: auto;
+  height: auto;
+}
+
+.timestamp {
+  flex-grow: 0;
+  flex-shrink: 1;
+  flex-basis: auto;
+  order: 0;
+  align-self: center;
+  width: auto;
+  height: auto;
+
+  font-size: 75%;
+  white-space: nowrap; /* Ensure timestamp doesn't wrap to the next line */
+  text-align: right; /* Align the timestamp to the right */
+}
+
+#search {
+  text-align: right;
+}
