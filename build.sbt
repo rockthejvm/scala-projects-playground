@@ -10,6 +10,7 @@ libraryDependencies ++= Seq(
   "com.lihaoyi" %% "os-lib"    % "0.11.4",
   "com.lihaoyi" %% "scalatags" % "0.13.1",
   "com.lihaoyi" %% "cask"      % "0.10.2",
+  "com.lihaoyi" %% "fastparse" % "3.1.1",
   // Java libraries
   // scraping
   "org.jsoup" % "jsoup" % "1.19.1",
