@@ -38,14 +38,26 @@ object Expr:
       case Expr.Func(argNames, body) =>
         Value.Func(args => evaluate(body, scope ++ argNames.zip(args).toMap))
 
-  def serialize(v: Value): String =
+  // Use this for printing as a compact json string
+  private def serialize(v: Value): String =
     v match
       case Value.Num(i)    => i.toString
       case Value.Str(s)    => s"\"$s\""
       case Value.Dict(kvs) => kvs.map((k, v) => s"\"$k\": ${serialize(v)}").mkString("{", ", ", "}")
 
+  // Use this for pretty printing
+  private def serialize2(v: Value): ujson.Value =
+    v match
+      case Value.Num(i)    => ujson.Num(i)
+      case Value.Str(s)    => ujson.Str(s)
+      case Value.Dict(kvs) => ujson.Obj.from(kvs.map { case (k, v) => (k, serialize2(v)) })
+
   def jsonnet(input: String): String =
-    serialize(evaluate(fastparse.parse(input, expr(_)).get.value, Map.empty))
+    // serialize(evaluate(fastparse.parse(input, expr(_)).get.value, Map.empty))
+    ujson.write(
+      serialize2(evaluate(fastparse.parse(input, Parser.expr(_)).get.value, Map.empty)),
+      indent = 2
+    )
 
   def main(args: Array[String]): Unit = {
     Seq(
@@ -71,15 +83,15 @@ object Expr:
 
     // jsonnet
     println(jsonnet("""|local greeting = "Hello ";
-         |local person = function (name) {
-         | "name": name,
-         | "welcome": greeting + name + "!"
-         |};
-         |{
-         | "person1": person("Alice"),
-         | "person2": person("Bob"),
-         | "person3": person("Charlie")
-         |}""".stripMargin))
+                       |local person = function (name) {
+                       | "name": name,
+                       | "welcome": greeting + name + "!"
+                       |};
+                       |{
+                       | "person1": person("Alice"),
+                       | "person2": person("Bob"),
+                       | "person3": person("Charlie")
+                       |}""".stripMargin))
 
     println(
       jsonnet(
