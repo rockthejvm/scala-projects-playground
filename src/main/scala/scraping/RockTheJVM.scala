@@ -37,8 +37,8 @@ object RockTheJVM extends App {
             }
         }
       }
-      .flatMap(article => article.tags.map(tag => (tag, article))) // Using named tuples :)
-      .seq                                                         // Convert back to a sequential collection
+      .flatMap(article => article.tags.map(tag => (tag, article)))
+      .seq // Convert back to a sequential collection
       .groupMap(_._1)(_._2)
       .view
       .mapValues(_.toList)
