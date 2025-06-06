@@ -6,11 +6,15 @@ Also, when running the app from IntelliJ, configure the run configuration for `s
 
 ## Exercises
 
-- Syncing folders/sub-folders
+- **Syncing folders/sub-folders**
 
   Track `Rpc.CreateFolder` case class
 
-- Syncing deleted files/folders 
+  ![etc/create_folder.png](etc/create_folder.png)
+
+- **Syncing deleted files/folders** 
   
   Track `Rpc.DeletePath` case class
+
+  ![etc/delete_path.png](etc/delete_path.png)
 
