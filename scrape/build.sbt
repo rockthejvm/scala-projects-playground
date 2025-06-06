@@ -10,6 +10,6 @@ lazy val scrape =
           "org.scala-lang.modules" %% "scala-parallel-collections" % "1.2.0" ::
           "org.quartz-scheduler"    % "quartz"                     % "2.5.0" ::
           "org.quartz-scheduler"    % "quartz-jobs"                % "2.5.0" ::
-          "com.sendgrid"            % "sendgrid-java"              % "4.10.3" ::
+          "com.sun.mail"            % "javax.mail"                 % "1.6.2" ::
           Nil
     )
