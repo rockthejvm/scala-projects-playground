@@ -12,6 +12,7 @@ lazy val app =
     .in(file("."))
     .settings(
       name := "chat-app",
+      fork := true,
       libraryDependencies ++=
         "com.lihaoyi"   %%% "upickle"       % "4.1.0" ::
           "com.lihaoyi" %%% "scalatags"     % "0.12.0" ::
