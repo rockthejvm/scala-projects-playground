@@ -10,8 +10,9 @@
 ## Running the application
 
 1. Run the client with `sbt "~appJS/fastOptJS"` to keep the client files up to date with the changes you make to `js (appJS)` project.
-2. TODO: Figure out how to run the server from command line. `sbt runMain com.rtjvm.chat.backend.Server` or `sbt run` does not launch the server. **For now, you should be able to run it from IntelliJ**. Go to `Server.scala` and run the file.
-3. Chat application should be accessible at http://localhost:8080/static/index.html
+2. You can run the server from the IDE by loading the entire project and running the `Server` class.
+3. Or you can run the server from the command line from _within the `chat-app` folder_: `sbt runMain com.rtjvm.chat.backend.Server`.
+4. Chat application should be accessible at http://localhost:8080/static/index.html
 
 ## Project Info
 
@@ -37,7 +38,7 @@ Not using `synchronized` but using a `ConcurrentHashMap`.
 
 **The online examples so far provide a simple test suite, that uses `String.contains` .... Use the Jsoup library we saw Chapter 11: Scraping Websites to make ... tag**
 
-Not Implemented! TBD!
+Not Implemented! As we discussed, we are not doing any tests.
 
 **Keep track each message's send time and date in the database, and display it in the user interface**
 

@@ -34,10 +34,10 @@ object Server extends cask.MainRoutes {
 
   @cask.postJson("/chat")
   def postChatMsg(
-      sender:    String,
-      msg:       String,
-      parent:    Option[Long] = None,
-      timestamp: Option[Long] = None
+    sender:    String,
+    msg:       String,
+    parent:    Option[Long] = None,
+    timestamp: Option[Long] = None
   ): ujson.Value =
     (sender.trim, msg.trim) match
       case ("", _) => writeJs(ChatResponse.error("Name cannot be empty"))
@@ -84,7 +84,12 @@ object Server extends cask.MainRoutes {
     write(Greeting(s"Hello $name, from Scala.js backend! $token"))
 
   @cask.staticFiles("/static")
-  def staticFileRoutes() = "chat-app/js/static"
+  def staticFileRoutes(): String =
+    val userDir    = System.getProperty("user.dir")
+    val staticPath = os.Path(userDir) / "chat-app" / "js" / "static"
+
+    if os.exists(staticPath) then staticPath.toString         // when running from IDE
+    else (os.Path(userDir) / ".." / "js" / "static").toString // when running from chat-app folder on the command line
 
   private def createDataDir(): String =
     val dataDir = os.home / "pgdata"
