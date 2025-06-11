@@ -9,8 +9,10 @@ import dev.langchain4j.data.document.parser.TextDocumentParser
 import dev.langchain4j.data.document.splitter.DocumentSplitters
 import dev.langchain4j.data.segment.TextSegment
 import dev.langchain4j.memory.chat.MessageWindowChatMemory
+import dev.langchain4j.model.chat.response.StreamingChatResponseHandler
+import dev.langchain4j.model.chat.{ChatModel, StreamingChatModel}
 import dev.langchain4j.model.embedding.EmbeddingModel
-import dev.langchain4j.model.openai.{OpenAiChatModel, OpenAiEmbeddingModel}
+import dev.langchain4j.model.openai.{OpenAiChatModel, OpenAiEmbeddingModel, OpenAiStreamingChatModel}
 import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever
 import dev.langchain4j.service.AiServices
 import dev.langchain4j.store.embedding.EmbeddingStore
@@ -36,10 +38,30 @@ object ChatService:
   def routes(implicit logger: Logger[IO]): HttpRoutes[IO] =
     HttpRoutes.of[IO] { case req @ POST -> Root / "chat" =>
       for {
-        _       <- logger.info("Received chat request")
-        chatReq <- req.as[ChatRequest]
-        answer  <- IO.blocking(ChatService.assistant.chat(chatReq.question))
-        resp    <- Ok(ChatResponse(answer).asJson)
+        _               <- logger.info("Received chat request")
+        chatReq         <- req.as[ChatRequest]
+        responsePromise <- IO.deferred[String]
+        _ <- IO.blocking {
+          try {
+            val tokenStream = ChatService.assistant.chat(chatReq.question)
+
+            tokenStream
+              .onPartialResponse(partialResponse => println(partialResponse))
+              .onRetrieved(contents => System.out.println(contents))
+              .onToolExecuted(toolExecution => System.out.println(toolExecution))
+              .onCompleteResponse { response =>
+                System.out.println(response)
+                responsePromise.complete(response.aiMessage.text).unsafeRunSync()
+              }
+              .onError(error => error.printStackTrace())
+              .start();
+          } catch {
+            case e: Throwable =>
+              responsePromise.complete(e.getMessage).unsafeRunSync()
+          }
+        }
+        answer <- responsePromise.get
+        resp   <- Ok(ChatResponse(answer).asJson)
       } yield resp
     }
 
@@ -52,8 +74,8 @@ object ChatService:
 
   ingestDocs(documents, embeddingStore, embeddingModel).start.unsafeRunSync()
 
-  val chatModel: OpenAiChatModel =
-    OpenAiChatModel
+  val chatModel: StreamingChatModel =
+    OpenAiStreamingChatModel
       .builder()
       .apiKey(openaiApiKey)
       .modelName("gpt-4o-mini")
@@ -62,7 +84,7 @@ object ChatService:
   val assistant: Assistant =
     AiServices
       .builder(classOf[Assistant])
-      .chatModel(chatModel)
+      .streamingChatModel(chatModel)
       .chatMemory(MessageWindowChatMemory.withMaxMessages(10))
       .contentRetriever(
         EmbeddingStoreContentRetriever

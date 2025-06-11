@@ -19,16 +19,6 @@ implicit val loggerFactory: LoggerFactory[IO] = Slf4jFactory.create[IO]
 object Main extends IOApp.Simple {
   private val logger = LoggerFactory[IO].getLogger
 
-  private val chatService: HttpRoutes[IO] =
-    HttpRoutes.of[IO] { case req @ POST -> Root / "chat" =>
-      for {
-        _       <- logger.info("Received chat request")
-        chatReq <- req.as[ChatRequest]
-        answer  <- IO.blocking(ChatService.assistant.chat(chatReq.question))
-        resp    <- Ok(ChatResponse(answer).asJson)
-      } yield resp
-    }
-
   private val httpApp = Router(
     "/"    -> HealthService.routes,
     "/api" -> ChatService.routes(using logger)
