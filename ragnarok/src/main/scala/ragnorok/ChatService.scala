@@ -28,8 +28,7 @@ import scala.jdk.CollectionConverters.*
 object ChatService:
   private val logger         = LoggerFactory[IO].getLogger
   private val openaiApiKey   = readOpenAiApiKey
-  private val UserHome       = System.getProperty("user.home")
-  private val DocsDir        = s"$UserHome/Projects/assayire/scala-projects-playground"
+  private val DocsDir        = readDocsDir
   private val pathMatcher    = FileSystems.getDefault.getPathMatcher("glob:**.scala")
   private val documents      = loadDocumentsRecursively(DocsDir, pathMatcher, new TextDocumentParser())
   private val embeddingStore = new InMemoryEmbeddingStore[TextSegment]()
