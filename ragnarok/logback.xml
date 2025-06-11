@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Console Appender -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %highlight(%-5level) %cyan(%logger{36}) - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- File Appender -->
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>ragnarok.log</file>
+        <append>true</append>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Set logging levels -->
+    <logger name="org.http4s" level="DEBUG"/>
+    <logger name="org.http4s.ember" level="DEBUG"/>
+    <logger name="org.http4s.server" level="DEBUG"/>
+    <logger name="com.comcast.ip4s" level="DEBUG"/>
+    <logger name="io.chrisdavenport" level="DEBUG"/>
+    <logger name="ragnorok" level="TRACE"/>
+
+    <!-- Log everything with a threshold at DEBUG to both console and file -->
+    <root level="DEBUG">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </root>
+</configuration>
