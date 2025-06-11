@@ -38,92 +38,81 @@ object ChatService:
 
   private def createTokenQueue: IO[Queue[IO, String]] = Queue.unbounded[IO, String]
 
-  private def startTokenProcessor(tokenQueue: Queue[IO, String], channel: Channel[IO, String]): IO[Unit] = {
-    // Start a fiber that will process tokens as they come in
-    def processTokens: IO[Unit] = {
-      fs2.Stream
-        .repeatEval(tokenQueue.take)
-        .evalMap { token =>
-          val event = s"data: ${token.replace("\n", " ")}\n\n"
-          channel
-            .send(event)
-            .flatMap(
-              _.fold(
-                _ => IO.unit, // Ignore if channel is closed
-                _ => IO.unit
-              )
+  private def startTokenProcessor(tokenQueue: Queue[IO, String], channel: Channel[IO, String]): IO[Unit] =
+    fs2.Stream
+      .repeatEval(tokenQueue.take)
+      .evalMap { token =>
+        val event = s"$token\n\n"
+        channel
+          .send(event)
+          .flatMap(
+            _.fold(
+              _ => IO.unit, // Ignore if channel is closed
+              _ => IO.unit
             )
-        }
-        .compile
-        .drain
-    }
+          )
+      }
+      .compile
+      .drain
+      .handleErrorWith { error =>
+        IO(println(s"Error in token processor: ${error.getMessage}"))
+      }
 
-    processTokens.handleErrorWith { error =>
-      IO(println(s"Error in token processor: ${error.getMessage}"))
-    }
-  }
+  def routes(implicit logger: Logger[IO]): HttpRoutes[IO] =
+    HttpRoutes.of[IO] { case req @ POST -> Root / "chat" =>
+      logger.info("Received chat request") *> {
+        (for {
+          chatReq    <- req.as[ChatRequest]
+          tokenQueue <- createTokenQueue
+          channel    <- Channel.unbounded[IO, String]
+          processor  <- startTokenProcessor(tokenQueue, channel).start
+          _          <- IO(processor)
 
-  def routes(implicit logger: Logger[IO]): HttpRoutes[IO] = {
+          _ <- IO {
+            val tokenStream = ChatService.assistant.chat(chatReq.question)
 
-    HttpRoutes.of[IO] {
-      case req @ POST -> Root / "chat" =>
-        logger.info("Received chat request") *> {
-          (for {
-            chatReq    <- req.as[ChatRequest]
-            tokenQueue <- createTokenQueue
-            channel    <- Channel.unbounded[IO, String]
-            processor  <- startTokenProcessor(tokenQueue, channel).start
-            _          <- IO(processor)
-
-            _ <- IO {
-              val tokenStream = ChatService.assistant.chat(chatReq.question)
-
-              tokenStream
-                .onPartialResponse { token =>
-                  tokenQueue
-                    .offer(token)
-                    .flatMap(_ => IO.unit)
-                    .unsafeRunAndForget()
-                }
-                .onCompleteResponse { _ =>
-                  (channel.send("event: done\ndata: {}\n\n") *> channel.close.attempt.void)
-                    .unsafeRunAndForget()
-                }
-                .onError { error =>
-                  (channel.send(s"event: error\ndata: ${error.getMessage}\n\n") *> channel.close.attempt.void)
-                    .unsafeRunAndForget()
-                }
-                .start()
-            }.start
-
-            responseStream = channel.stream
-              .evalMap(event => IO(event))
-              .flatMap { event =>
-                Stream.chunk(Chunk.array(event.getBytes))
+            tokenStream
+              .onPartialResponse { token =>
+                tokenQueue
+                  .offer(token)
+                  .flatMap(_ => IO.unit)
+                  .unsafeRunAndForget()
               }
+              .onCompleteResponse { _ =>
+                (channel.send("event: done\ndata: {}\n\n") *> channel.close.attempt.void)
+                  .unsafeRunAndForget()
+              }
+              .onError { error =>
+                (channel.send(s"event: error\ndata: ${error.getMessage}\n\n") *> channel.close.attempt.void)
+                  .unsafeRunAndForget()
+              }
+              .start()
+          }.start
 
-            response <- Ok(
-              responseStream,
-              `Content-Type`(MediaType.unsafeParse("text/event-stream"))
-            ).map(
-              _.withHeaders(
-                Header.Raw(CIString("Cache-Control"), "no-cache"),
-                Header.Raw(CIString("Connection"), "keep-alive"),
-                Header.Raw(CIString("X-Accel-Buffering"), "no"), // For Nginx
-                Header.Raw(CIString("Transfer-Encoding"), "chunked"),
-                Header.Raw(CIString("Content-Type"), "text/event-stream; charset=utf-8")
-              )
+          responseStream = channel.stream
+            .evalMap(event => IO(event))
+            .flatMap { event =>
+              Stream.chunk(Chunk.array(event.getBytes))
+            }
+
+          response <- Ok(
+            responseStream,
+            `Content-Type`(MediaType.unsafeParse("text/event-stream"))
+          ).map(
+            _.withHeaders(
+              Header.Raw(CIString("Cache-Control"), "no-cache"),
+              Header.Raw(CIString("Connection"), "keep-alive"),
+              Header.Raw(CIString("X-Accel-Buffering"), "no"), // For Nginx
+              Header.Raw(CIString("Transfer-Encoding"), "chunked"),
+              Header.Raw(CIString("Content-Type"), "text/event-stream; charset=utf-8")
             )
-          } yield response).handleErrorWith { error =>
-            logger.error(s"Error processing chat request: ${error.getMessage}") *>
-              InternalServerError(error.getMessage)
-          }
+          )
+        } yield response).handleErrorWith { error =>
+          logger.error(s"Error processing chat request: ${error.getMessage}") *>
+            InternalServerError(error.getMessage)
         }
-
-      case GET -> Root / "health" =>
-        Ok("OK")
+      }
     }
-  }
 
   val embeddingModel: OpenAiEmbeddingModel =
     OpenAiEmbeddingModel
@@ -132,7 +121,7 @@ object ChatService:
       .modelName("text-embedding-ada-002")
       .build()
 
-  ingestDocuments()
+  ingestDocuments().start.void
 
   val chatModel: StreamingChatModel =
     OpenAiStreamingChatModel
@@ -155,18 +144,23 @@ object ChatService:
       )
       .build()
 
-  private def ingestDocuments(): Unit = {
-    val textSegments = documents.asScala
-      .flatMap { doc =>
-        val splitter = DocumentSplitters.recursive(1000, 200)
-        splitter.split(doc).asScala.map(segment => TextSegment.from(segment.text(), doc.metadata()))
-      }
-      .toList
-      .asJava
+  private def ingestDocuments(): IO[Unit] =
+    logger.info("Ingesting documents ...") *>
+      IO {
+        val textSegments = documents.asScala
+          .flatMap { doc =>
+            logger.info(s"  Processing document: ${doc.metadata().getString("path")}").unsafeRunAndForget()
+            val splitter = DocumentSplitters.recursive(1000, 200)
+            splitter.split(doc).asScala.map(segment => TextSegment.from(segment.text(), doc.metadata()))
+          }
+          .toList
+          .asJava
 
-    val embeddings = embeddingModel.embedAll(textSegments).content()
-    embeddingStore.addAll(embeddings, textSegments)
-  }
+        val embeddings = embeddingModel.embedAll(textSegments).content()
+        embeddingStore.addAll(embeddings, textSegments)
+
+        ()
+      }
 
   private def readOpenAiApiKey: String =
     Option(System.getenv("OPENAI_API_KEY")).getOrElse {
