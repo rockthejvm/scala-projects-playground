@@ -1,69 +1,129 @@
 package ragnorok
 
 import cats.effect.IO
+import cats.effect.std.Queue
 import cats.effect.unsafe.implicits.global
-import cats.implicits.*
-import dev.langchain4j.data.document.Document
+import cats.syntax.all.*
 import dev.langchain4j.data.document.loader.FileSystemDocumentLoader.loadDocumentsRecursively
 import dev.langchain4j.data.document.parser.TextDocumentParser
 import dev.langchain4j.data.document.splitter.DocumentSplitters
 import dev.langchain4j.data.segment.TextSegment
 import dev.langchain4j.memory.chat.MessageWindowChatMemory
-import dev.langchain4j.model.chat.response.StreamingChatResponseHandler
-import dev.langchain4j.model.chat.{ChatModel, StreamingChatModel}
-import dev.langchain4j.model.embedding.EmbeddingModel
-import dev.langchain4j.model.openai.{OpenAiChatModel, OpenAiEmbeddingModel, OpenAiStreamingChatModel}
+import dev.langchain4j.model.chat.StreamingChatModel
+import dev.langchain4j.model.openai.{OpenAiEmbeddingModel, OpenAiStreamingChatModel}
 import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever
 import dev.langchain4j.service.AiServices
-import dev.langchain4j.store.embedding.EmbeddingStore
 import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore
-import io.circe.generic.auto.deriveEncoder
-import io.circe.syntax.*
+import fs2.{Chunk, Stream}
+import fs2.concurrent.Channel
+
 import org.http4s.*
-import org.http4s.circe.*
 import org.http4s.dsl.io.*
+import org.http4s.headers.`Content-Type`
+import org.typelevel.ci.CIString
 import org.typelevel.log4cats.{Logger, LoggerFactory}
 
 import java.nio.file.FileSystems
 import scala.jdk.CollectionConverters.*
 
 object ChatService:
-  private val logger         = LoggerFactory[IO].getLogger
-  private val openaiApiKey   = readOpenAiApiKey
-  private val DocsDir        = readDocsDir
-  private val pathMatcher    = FileSystems.getDefault.getPathMatcher("glob:**.scala")
+  private val logger       = LoggerFactory[IO].getLogger
+  private val openaiApiKey = readOpenAiApiKey
+  private val DocsDir      = readDocsDir
+  private val pathMatcher = FileSystems.getDefault.getPathMatcher(
+    "glob:**/*.{scala,java,py,txt,md,mdx,json,jsonl,html,csv,tsv,pdf}"
+  )
   private val documents      = loadDocumentsRecursively(DocsDir, pathMatcher, new TextDocumentParser())
   private val embeddingStore = new InMemoryEmbeddingStore[TextSegment]()
 
-  def routes(implicit logger: Logger[IO]): HttpRoutes[IO] =
-    HttpRoutes.of[IO] { case req @ POST -> Root / "chat" =>
-      for {
-        _               <- logger.info("Received chat request")
-        chatReq         <- req.as[ChatRequest]
-        responsePromise <- IO.deferred[String]
-        _ <- IO.blocking {
-          try {
-            val tokenStream = ChatService.assistant.chat(chatReq.question)
+  private def createTokenQueue: IO[Queue[IO, String]] = Queue.unbounded[IO, String]
 
-            tokenStream
-              .onPartialResponse(partialResponse => println(partialResponse))
-              .onRetrieved(contents => System.out.println(contents))
-              .onToolExecuted(toolExecution => System.out.println(toolExecution))
-              .onCompleteResponse { response =>
-                System.out.println(response)
-                responsePromise.complete(response.aiMessage.text).unsafeRunSync()
+  private def startTokenProcessor(tokenQueue: Queue[IO, String], channel: Channel[IO, String]): IO[Unit] = {
+    // Start a fiber that will process tokens as they come in
+    def processTokens: IO[Unit] = {
+      fs2.Stream
+        .repeatEval(tokenQueue.take)
+        .evalMap { token =>
+          val event = s"data: ${token.replace("\n", " ")}\n\n"
+          channel
+            .send(event)
+            .flatMap(
+              _.fold(
+                _ => IO.unit, // Ignore if channel is closed
+                _ => IO.unit
+              )
+            )
+        }
+        .compile
+        .drain
+    }
+
+    processTokens.handleErrorWith { error =>
+      IO(println(s"Error in token processor: ${error.getMessage}"))
+    }
+  }
+
+  def routes(implicit logger: Logger[IO]): HttpRoutes[IO] = {
+
+    HttpRoutes.of[IO] {
+      case req @ POST -> Root / "chat" =>
+        logger.info("Received chat request") *> {
+          (for {
+            chatReq    <- req.as[ChatRequest]
+            tokenQueue <- createTokenQueue
+            channel    <- Channel.unbounded[IO, String]
+            processor  <- startTokenProcessor(tokenQueue, channel).start
+            _          <- IO(processor)
+
+            _ <- IO {
+              val tokenStream = ChatService.assistant.chat(chatReq.question)
+
+              tokenStream
+                .onPartialResponse { token =>
+                  tokenQueue
+                    .offer(token)
+                    .flatMap(_ => IO.unit)
+                    .unsafeRunAndForget()
+                }
+                .onCompleteResponse { _ =>
+                  (channel.send("event: done\ndata: {}\n\n") *> channel.close.attempt.void)
+                    .unsafeRunAndForget()
+                }
+                .onError { error =>
+                  (channel.send(s"event: error\ndata: ${error.getMessage}\n\n") *> channel.close.attempt.void)
+                    .unsafeRunAndForget()
+                }
+                .start()
+            }.start
+
+            responseStream = channel.stream
+              .evalMap(event => IO(event))
+              .flatMap { event =>
+                Stream.chunk(Chunk.array(event.getBytes))
               }
-              .onError(error => error.printStackTrace())
-              .start();
-          } catch {
-            case e: Throwable =>
-              responsePromise.complete(e.getMessage).unsafeRunSync()
+
+            response <- Ok(
+              responseStream,
+              `Content-Type`(MediaType.unsafeParse("text/event-stream"))
+            ).map(
+              _.withHeaders(
+                Header.Raw(CIString("Cache-Control"), "no-cache"),
+                Header.Raw(CIString("Connection"), "keep-alive"),
+                Header.Raw(CIString("X-Accel-Buffering"), "no"), // For Nginx
+                Header.Raw(CIString("Transfer-Encoding"), "chunked"),
+                Header.Raw(CIString("Content-Type"), "text/event-stream; charset=utf-8")
+              )
+            )
+          } yield response).handleErrorWith { error =>
+            logger.error(s"Error processing chat request: ${error.getMessage}") *>
+              InternalServerError(error.getMessage)
           }
         }
-        answer <- responsePromise.get
-        resp   <- Ok(ChatResponse(answer).asJson)
-      } yield resp
+
+      case GET -> Root / "health" =>
+        Ok("OK")
     }
+  }
 
   val embeddingModel: OpenAiEmbeddingModel =
     OpenAiEmbeddingModel
@@ -72,7 +132,7 @@ object ChatService:
       .modelName("text-embedding-ada-002")
       .build()
 
-  ingestDocs(documents, embeddingStore, embeddingModel).start.unsafeRunSync()
+  ingestDocuments()
 
   val chatModel: StreamingChatModel =
     OpenAiStreamingChatModel
@@ -95,27 +155,17 @@ object ChatService:
       )
       .build()
 
-  private def ingestDocs(
-    documents:      java.util.List[Document],
-    embeddingStore: EmbeddingStore[TextSegment],
-    embeddingModel: EmbeddingModel
-  ): IO[Unit] = {
-    val splitter = DocumentSplitters.recursive(300, 0)
-
-    val segments =
-      for
-        document <- documents.asScala
-        segment  <- splitter.split(document).asScala
-      yield TextSegment.from(segment.text(), segment.metadata())
-
-    // Process segments in parallel, off the main thread
-    segments.toList.parTraverse_ { textSegment =>
-      IO.blocking {
-        val response  = embeddingModel.embed(textSegment.text())
-        val embedding = response.content()
-        embeddingStore.add(embedding, textSegment)
+  private def ingestDocuments(): Unit = {
+    val textSegments = documents.asScala
+      .flatMap { doc =>
+        val splitter = DocumentSplitters.recursive(1000, 200)
+        splitter.split(doc).asScala.map(segment => TextSegment.from(segment.text(), doc.metadata()))
       }
-    }
+      .toList
+      .asJava
+
+    val embeddings = embeddingModel.embedAll(textSegments).content()
+    embeddingStore.addAll(embeddings, textSegments)
   }
 
   private def readOpenAiApiKey: String =
