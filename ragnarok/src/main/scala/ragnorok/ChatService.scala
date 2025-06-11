@@ -103,3 +103,10 @@ object ChatService:
       System.exit(1)
       ""
     }
+
+  private def readDocsDir: String =
+    Option(System.getenv("RAG_DOCS_DIR")).getOrElse {
+      println("*** RAG_DOCS_DIR environment variable not set ***")
+      System.exit(1)
+      ""
+    }
