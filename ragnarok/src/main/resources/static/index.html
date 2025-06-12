@@ -72,10 +72,27 @@
       margin-bottom: 20px;
       padding: 10px;
       border-radius: 5px;
+      max-width: 85%;
+    }
+
+    .message.user {
+      margin-left: auto;
+      background-color: #007bff;
+      color: white;
+    }
+
+    .message.assistant {
+      margin-right: auto;
+      background-color: #f8f9fa;
+      border: 1px solid #e9ecef;
     }
 
     .message-content {
       line-height: 1.5;
+    }
+
+    .message.user .message-content code {
+      background-color: rgba(255, 255, 255, 0.1);
     }
 
     .message-content pre {
@@ -166,9 +183,9 @@
     const userInput = document.getElementById('userInput');
     const sendButton = document.getElementById('sendButton');
 
-    function addMessage(content) {
+    function addMessage(content, isUser = false) {
       const messageDiv = document.createElement('div');
-      messageDiv.className = 'message';
+      messageDiv.className = `message ${isUser ? 'user' : 'assistant'}`;
 
       const contentDiv = document.createElement('div');
       contentDiv.className = 'message-content';
@@ -177,6 +194,7 @@
       messageDiv.appendChild(contentDiv);
       messagesContainer.appendChild(messageDiv);
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      return messageDiv;
     }
 
     function sendMessage() {
@@ -188,7 +206,10 @@
       sendButton.disabled = true;
 
       // Add user message
-      addMessage(message);
+      addMessage(message, true);
+      
+      // Add initial assistant message div
+      const assistantMessageDiv = addMessage('...');
 
       // Clear input
       userInput.value = '';
@@ -242,10 +263,9 @@
               // Replace escaped newlines with actual newlines
               responseText += data.replace(/\\n/g, '\n');
 
-              // Update the last message with the accumulated response
-              const lastMessage = messagesContainer.lastElementChild;
-              if (lastMessage) {
-                const contentDiv = lastMessage.querySelector('.message-content');
+              // Update the assistant's message with the accumulated response
+              const contentDiv = assistantMessageDiv.querySelector('.message-content');
+              if (contentDiv) {
                 // Remove trailing {} and then parse markdown
                 const cleanText = responseText.replace(/\{\}$/, '').trim();
                 contentDiv.innerHTML = marked.parse(cleanText);
