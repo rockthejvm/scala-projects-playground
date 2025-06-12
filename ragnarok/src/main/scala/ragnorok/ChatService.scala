@@ -1,9 +1,7 @@
 package ragnorok
 
 import cats.effect.IO
-import cats.effect.std.Queue
 import cats.effect.unsafe.implicits.global
-import cats.syntax.all.*
 import dev.langchain4j.data.document.loader.FileSystemDocumentLoader.loadDocumentsRecursively
 import dev.langchain4j.data.document.parser.TextDocumentParser
 import dev.langchain4j.data.document.splitter.DocumentSplitters
@@ -14,9 +12,8 @@ import dev.langchain4j.model.openai.{OpenAiEmbeddingModel, OpenAiStreamingChatMo
 import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever
 import dev.langchain4j.service.AiServices
 import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore
-import fs2.{Chunk, Stream}
 import fs2.concurrent.Channel
-
+import fs2.{Chunk, Stream}
 import org.http4s.*
 import org.http4s.dsl.io.*
 import org.http4s.headers.`Content-Type`
@@ -36,55 +33,29 @@ object ChatService:
   private val documents      = loadDocumentsRecursively(DocsDir, pathMatcher, new TextDocumentParser())
   private val embeddingStore = new InMemoryEmbeddingStore[TextSegment]()
 
-  private def createTokenQueue: IO[Queue[IO, String]] = Queue.unbounded[IO, String]
-
-  private def startTokenProcessor(tokenQueue: Queue[IO, String], channel: Channel[IO, String]): IO[Unit] =
-    fs2.Stream
-      .repeatEval(tokenQueue.take)
-      .evalMap { token =>
-        val event = s"data: $token\n\n"
-        channel
-          .send(event)
-          .flatMap(
-            _.fold(
-              _ => IO.unit, // Ignore if channel is closed
-              _ => IO.unit
-            )
-          )
-      }
-      .compile
-      .drain
-      .handleErrorWith { error =>
-        IO(println(s"Error in token processor: ${error.getMessage}"))
-      }
-
   def routes(implicit logger: Logger[IO]): HttpRoutes[IO] =
     HttpRoutes.of[IO] { case req @ POST -> Root / "chat" =>
       logger.info("Received chat request") *> {
         (for {
-          chatReq    <- req.as[ChatRequest]
-          tokenQueue <- createTokenQueue
-          channel    <- Channel.unbounded[IO, String]
-          processor  <- startTokenProcessor(tokenQueue, channel).start
-          _          <- IO(processor)
+          chatReq <- req.as[ChatRequest]
+          channel <- Channel.unbounded[IO, String]
 
           _ <- IO {
             val tokenStream = ChatService.assistant.chat(chatReq.question)
 
             tokenStream
               .onPartialResponse { token =>
-                tokenQueue
-                  .offer(token)
-                  .flatMap(_ => IO.unit)
-                  .unsafeRunAndForget()
+                val data = if token == "\n" || token == "\n\n" then "<p/>" else token
+                val event = s"data: $data\n\n"
+                channel.send(event).attempt.void.unsafeRunSync()
               }
               .onCompleteResponse { _ =>
                 (channel.send("event: done\ndata: {}\n\n") *> channel.close.attempt.void)
-                  .unsafeRunAndForget()
+                  .unsafeRunSync()
               }
               .onError { error =>
                 (channel.send(s"event: error\ndata: ${error.getMessage}\n\n") *> channel.close.attempt.void)
-                  .unsafeRunAndForget()
+                  .unsafeRunSync()
               }
               .start()
           }.start
