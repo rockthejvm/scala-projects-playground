@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ragnarok Chat</title>
+    <title>RAGnarok Chat</title>
     <style>
         :root {
             --primary-color: #4f46e5;
@@ -164,7 +164,7 @@
 <body>
     <div class="container">
         <header class="header">
-            <h1>Ragnarok Chat</h1>
+            <h1>RAGnarok Chat</h1>
         </header>
         
         <div class="chat-container" id="chat-container">
@@ -175,9 +175,8 @@
             <input 
                 type="text" 
                 id="message-input" 
-                placeholder="Type your message..." 
+                placeholder="Type your question ..."
                 autocomplete="off"
-                onkeypress="if(event.key === 'Enter') sendMessage()"
             >
             <button id="send-button" onclick="sendMessage()" disabled>Send</button>
         </div>
@@ -369,10 +368,18 @@
             });
         }
 
-        // Focus the input field when the page loads
-        window.onload = function() {
+        // Add event listeners when the page loads
+        window.addEventListener('load', () => {
             messageInput.focus();
-        };
+            
+            // Add Enter key event listener
+            messageInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    sendMessage();
+                }
+            });
+        });
     </script>
 </body>
 </html>
