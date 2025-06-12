@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat Interface</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        // Configure marked to not normalize newlines
+        marked.use({
+            gfm: true,
+            breaks: true
+        });
+    </script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -38,8 +46,27 @@
 
         .message-content {
             line-height: 1.5;
-            white-space: pre-wrap;
-            font-family: monospace;
+        }
+
+        .message-content pre {
+            background-color: #f6f8fa;
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+        }
+
+        .message-content code {
+            font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+            font-size: 0.9em;
+            background-color: rgba(175, 184, 193, 0.2);
+            padding: 0.2em 0.4em;
+            border-radius: 6px;
+        }
+
+        .message-content pre code {
+            background-color: transparent;
+            padding: 0;
+            font-size: 1em;
         }
 
         .input-container {
@@ -92,6 +119,9 @@
     </style>
 </head>
 <body>
+    <div class="header">
+      <h1>RAGnarok Chat</h1>
+    </div>
     <div class="chat-container">
         <div class="chat-messages" id="messages"></div>
         <div class="input-container">
@@ -111,7 +141,7 @@
             
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
-            contentDiv.textContent = content;
+            contentDiv.innerHTML = marked.parse(content);
             
             messageDiv.appendChild(contentDiv);
             messagesContainer.appendChild(messageDiv);
@@ -162,6 +192,10 @@
                 function readStream() {
                     reader.read().then(({done, value}) => {
                         if (done) {
+                            // Re-enable input and button when stream is complete
+                            userInput.disabled = false;
+                            sendButton.disabled = false;
+                            userInput.focus();
                             return;
                         }
                         
@@ -181,7 +215,7 @@
                             const lastMessage = messagesContainer.lastElementChild;
                             if (lastMessage) {
                                 const contentDiv = lastMessage.querySelector('.message-content');
-                                contentDiv.textContent = responseText;
+                                contentDiv.innerHTML = marked.parse(responseText);
                                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
                             }
                         }
