@@ -1,10 +1,378 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta charset="UTF-8">
-	<title>Hello World</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ragnarok Chat</title>
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --bg-color: #f9fafb;
+            --text-color: #111827;
+            --message-bg: #ffffff;
+            --user-message-bg: #eef2ff;
+            --border-color: #e5e7eb;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+
+        .header {
+            text-align: center;
+            padding: 1rem 0;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1rem;
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0.5rem;
+            background-color: var(--message-bg);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .message {
+            margin-bottom: 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .user-message {
+            background-color: var(--user-message-bg);
+            margin-left: auto;
+        }
+
+        .assistant-message {
+            background-color: var(--message-bg);
+            margin-right: auto;
+            border: 1px solid var(--border-color);
+        }
+
+        .typing-indicator {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background-color: var(--message-bg);
+            border-radius: 1rem;
+            border: 1px solid var(--border-color);
+            margin-bottom: 1rem;
+        }
+
+        .typing-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #9ca3af;
+            margin: 0 2px;
+            animation: typing 1.4s infinite both;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-4px); }
+        }
+
+        .input-container {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color);
+        }
+
+        #message-input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+
+        #message-input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+        }
+
+        #send-button {
+            padding: 0.75rem 1.5rem;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        #send-button:hover {
+            background-color: #4338ca;
+        }
+
+        #send-button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .message-time {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-top: 0.25rem;
+            text-align: right;
+        }
+
+        .message-header {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            color: var(--primary-color);
+        }
+    </style>
 </head>
 <body>
-<h1>Hello World</h1>
+    <div class="container">
+        <header class="header">
+            <h1>Ragnarok Chat</h1>
+        </header>
+        
+        <div class="chat-container" id="chat-container">
+            <!-- Messages will be added here dynamically -->
+        </div>
+        
+        <div class="input-container">
+            <input 
+                type="text" 
+                id="message-input" 
+                placeholder="Type your message..." 
+                autocomplete="off"
+                onkeypress="if(event.key === 'Enter') sendMessage()"
+            >
+            <button id="send-button" onclick="sendMessage()" disabled>Send</button>
+        </div>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        let eventSource = null;
+        let currentAssistantMessageId = null;
+
+        // Enable/disable send button based on input
+        messageInput.addEventListener('input', () => {
+            sendButton.disabled = messageInput.value.trim() === '';
+        });
+
+        // Add a message to the chat
+        function addMessage(role, content, messageId = null) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}-message`;
+            messageDiv.id = messageId || `msg-${Date.now()}`;
+            
+            const header = document.createElement('div');
+            header.className = 'message-header';
+            header.textContent = role === 'user' ? 'You' : 'Assistant';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.innerHTML = content.replace(/\n/g, '<br>');
+            
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'message-time';
+            timeDiv.textContent = new Date().toLocaleTimeString();
+            
+            messageDiv.appendChild(header);
+            messageDiv.appendChild(contentDiv);
+            messageDiv.appendChild(timeDiv);
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            return messageDiv.id;
+        }
+
+        // Show typing indicator
+        function showTypingIndicator() {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'typing-indicator';
+            typingDiv.id = 'typing-indicator';
+            typingDiv.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <span>Assistant is typing</span>
+                    <span class="typing-dot"></span>
+                    <span class="typing-dot"></span>
+                    <span class="typing-dot"></span>
+                </div>
+            `;
+            chatContainer.appendChild(typingDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Hide typing indicator
+        function hideTypingIndicator() {
+            const typingIndicator = document.getElementById('typing-indicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+
+        // Send message to the server
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // Add user message to chat
+            addMessage('user', message);
+            
+            // Clear input
+            messageInput.value = '';
+            sendButton.disabled = true;
+            
+            // Show typing indicator
+            showTypingIndicator();
+            
+            // Close any existing SSE connection
+            if (eventSource) {
+                eventSource.close();
+            }
+            
+            // Create a new message for the assistant's response
+            currentAssistantMessageId = `assistant-${Date.now()}`;
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message assistant-message';
+            messageDiv.id = currentAssistantMessageId;
+            
+            const header = document.createElement('div');
+            header.className = 'message-header';
+            header.textContent = 'Assistant';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'message-time';
+            timeDiv.textContent = new Date().toLocaleTimeString();
+            
+            messageDiv.appendChild(header);
+            messageDiv.appendChild(contentDiv);
+            messageDiv.appendChild(timeDiv);
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            // Set up fetch request with streaming
+            fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'text/event-stream'
+                },
+                body: JSON.stringify({ question: message })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                
+                function readChunk() {
+                    return reader.read().then(({ done, value }) => {
+                        if (done) {
+                            hideTypingIndicator();
+                            return;
+                        }
+                        
+                        // Decode the chunk and process it
+                        const chunk = decoder.decode(value, { stream: true });
+                        buffer += chunk;
+                        
+                        // Process complete events (each event is separated by double newlines)
+                        const events = buffer.split('\n\n');
+                        buffer = events.pop() || ''; // Keep incomplete event in buffer
+                        
+                        for (const event of events) {
+                            if (event.startsWith('data: ')) {
+                                const data = event.slice(6).trim();
+                                if (data === '[DONE]') {
+                                    reader.cancel();
+                                    hideTypingIndicator();
+                                    return;
+                                }
+                                
+                                // Append the new token to the assistant's message with proper spacing
+                                const contentDiv = document.querySelector(`#${currentAssistantMessageId} .message-content`);
+                                if (contentDiv) {
+                                    // Add a space before the token if it's not the first character
+                                    const shouldAddSpace = contentDiv.textContent.length > 0 && 
+                                                         !contentDiv.textContent.endsWith(' ') && 
+                                                         !contentDiv.textContent.endsWith('\n') &&
+                                                         !contentDiv.textContent.endsWith('\n\n') &&
+                                                         !data.match(/^[.,!?;:)]/); // Don't add space before these characters
+                                    
+                                    contentDiv.textContent += (shouldAddSpace ? ' ' : '') + data;
+                                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                                }
+                            }
+                        }
+                        
+                        // Read the next chunk
+                        return readChunk();
+                    });
+                }
+                
+                // Start reading the stream
+                return readChunk();
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+                hideTypingIndicator();
+                
+                const contentDiv = document.querySelector(`#${currentAssistantMessageId} .message-content`);
+                if (contentDiv && !contentDiv.textContent.trim()) {
+                    contentDiv.textContent = 'Sorry, something went wrong. Please try again.';
+                }
+            });
+        }
+
+        // Focus the input field when the page loads
+        window.onload = function() {
+            messageInput.focus();
+        };
+    </script>
 </body>
 </html>
