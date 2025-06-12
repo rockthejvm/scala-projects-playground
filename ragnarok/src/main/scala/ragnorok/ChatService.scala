@@ -42,7 +42,7 @@ object ChatService:
     fs2.Stream
       .repeatEval(tokenQueue.take)
       .evalMap { token =>
-        val event = s"$token\n\n"
+        val event = s"data: $token\n\n"
         channel
           .send(event)
           .flatMap(
