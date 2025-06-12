@@ -36,49 +36,54 @@ object ChatService:
   def routes(implicit logger: Logger[IO]): HttpRoutes[IO] =
     HttpRoutes.of[IO] { case req @ POST -> Root / "chat" =>
       logger.info("Received chat request") *> {
-        (for {
-          chatReq <- req.as[ChatRequest]
-          channel <- Channel.unbounded[IO, String]
+        (
+          for {
+            chatReq <- req.as[ChatRequest]
+            channel <- Channel.unbounded[IO, String]
 
-          _ <- IO {
-            val tokenStream = ChatService.assistant.chat(chatReq.question)
+            _ <- IO {
+              val tokenStream = ChatService.assistant.chat(chatReq.question)
 
-            tokenStream
-              .onPartialResponse { token =>
-                val data = if token == "\n" || token == "\n\n" then "<p/>" else token
-                val event = s"data: $data\n\n"
-                channel.send(event).attempt.void.unsafeRunSync()
+              tokenStream
+                .onPartialResponse { token =>
+                  val data =
+                    if token.matches("\\n+") then "<p />"
+                    else token
+
+                  val event = s"data: $data\n\n"
+                  channel.send(event).attempt.void.unsafeRunSync()
+                }
+                .onCompleteResponse { _ =>
+                  (channel.send("event: done\ndata: {}\n\n") *> channel.close.attempt.void)
+                    .unsafeRunSync()
+                }
+                .onError { error =>
+                  (channel.send(s"event: error\ndata: ${error.getMessage}\n\n") *> channel.close.attempt.void)
+                    .unsafeRunSync()
+                }
+                .start()
+            }.start
+
+            responseStream = channel.stream
+              .evalMap(event => IO(event))
+              .flatMap { event =>
+                Stream.chunk(Chunk.array(event.getBytes))
               }
-              .onCompleteResponse { _ =>
-                (channel.send("event: done\ndata: {}\n\n") *> channel.close.attempt.void)
-                  .unsafeRunSync()
-              }
-              .onError { error =>
-                (channel.send(s"event: error\ndata: ${error.getMessage}\n\n") *> channel.close.attempt.void)
-                  .unsafeRunSync()
-              }
-              .start()
-          }.start
 
-          responseStream = channel.stream
-            .evalMap(event => IO(event))
-            .flatMap { event =>
-              Stream.chunk(Chunk.array(event.getBytes))
-            }
-
-          response <- Ok(
-            responseStream,
-            `Content-Type`(MediaType.unsafeParse("text/event-stream"))
-          ).map(
-            _.withHeaders(
-              Header.Raw(CIString("Cache-Control"), "no-cache"),
-              Header.Raw(CIString("Connection"), "keep-alive"),
-              Header.Raw(CIString("X-Accel-Buffering"), "no"), // For Nginx
-              Header.Raw(CIString("Transfer-Encoding"), "chunked"),
-              Header.Raw(CIString("Content-Type"), "text/event-stream; charset=utf-8")
+            response <- Ok(
+              responseStream,
+              `Content-Type`(MediaType.unsafeParse("text/event-stream"))
+            ).map(
+              _.withHeaders(
+                Header.Raw(CIString("Cache-Control"), "no-cache"),
+                Header.Raw(CIString("Connection"), "keep-alive"),
+                Header.Raw(CIString("X-Accel-Buffering"), "no"), // For Nginx
+                Header.Raw(CIString("Transfer-Encoding"), "chunked"),
+                Header.Raw(CIString("Content-Type"), "text/event-stream; charset=utf-8")
+              )
             )
-          )
-        } yield response).handleErrorWith { error =>
+          } yield response
+        ).handleErrorWith { error =>
           logger.error(s"Error processing chat request: ${error.getMessage}") *>
             InternalServerError(error.getMessage)
         }
