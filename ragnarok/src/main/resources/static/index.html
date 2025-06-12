@@ -215,7 +215,9 @@
                             const lastMessage = messagesContainer.lastElementChild;
                             if (lastMessage) {
                                 const contentDiv = lastMessage.querySelector('.message-content');
-                                contentDiv.innerHTML = marked.parse(responseText);
+                                // Remove trailing {} and then parse markdown
+                                const cleanText = responseText.replace(/\{\}$/, '').trim();
+                                contentDiv.innerHTML = marked.parse(cleanText);
                                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
                             }
                         }
