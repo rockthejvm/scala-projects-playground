@@ -1,413 +1,223 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RAGnarok Chat</title>
-  <style>
-    :root {
-      --primary-color:   #4f46e5;
-      --bg-color:        #f9fafb;
-      --text-color:      #111827;
-      --message-bg:      #ffffff;
-      --user-message-bg: #eef2ff;
-      --border-color:    #e5e7eb;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Interface</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
 
-    body {
-      font-family:      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      margin:           0;
-      padding:          0;
-      background-color: var(--bg-color);
-      color:            var(--text-color);
-      line-height:      1.5;
-    }
+        .chat-container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
 
-    .container {
-      max-width:      800px;
-      margin:         0 auto;
-      height:         100vh;
-      display:        flex;
-      flex-direction: column;
-      padding:        1rem;
-      box-sizing:     border-box;
-    }
+        .chat-messages {
+            height: 500px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+        }
 
-    .header {
-      text-align:    center;
-      padding:       1rem 0;
-      border-bottom: 1px solid var(--border-color);
-      margin-bottom: 1rem;
-    }
+        .message {
+            margin-bottom: 20px;
+            padding: 10px;
+            border-radius: 5px;
+        }
 
-    .chat-container {
-      flex:             1;
-      overflow-y:       auto;
-      padding:          1rem;
-      margin-bottom:    1rem;
-      border-radius:    0.5rem;
-      background-color: var(--message-bg);
-      box-shadow:       0 1px 3px rgba(0, 0, 0, 0.1);
-    }
+        .message-content {
+            line-height: 1.5;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
 
-    .message {
-      margin-bottom: 1rem;
-      padding:       0.75rem 1rem;
-      border-radius: 0.5rem;
-      max-width:     80%;
-      word-wrap:     break-word;
-    }
+        .input-container {
+            display: flex;
+            gap: 10px;
+        }
 
-    .user-message {
-      background-color: var(--user-message-bg);
-      margin-left:      auto;
-    }
+        textarea {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            resize: vertical;
+            min-height: 60px;
+            font-family: inherit;
+        }
 
-    .assistant-message {
-      background-color: var(--message-bg);
-      margin-right:     auto;
-      border:           1px solid var(--border-color);
-    }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
 
-    .typing-indicator {
-      display:          inline-block;
-      padding:          0.5rem 1rem;
-      background-color: var(--message-bg);
-      border-radius:    1rem;
-      border:           1px solid var(--border-color);
-      margin-bottom:    1rem;
-    }
+        button:hover {
+            background-color: #0056b3;
+        }
 
-    .typing-dot {
-      display:          inline-block;
-      width:            8px;
-      height:           8px;
-      border-radius:    50%;
-      background-color: #9ca3af;
-      margin:           0 2px;
-      animation:        typing 1.4s infinite both;
-    }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
 
-    .typing-dot:nth-child(2) {
-      animation-delay: 0.2s;
-    }
+        /* Markdown Styles */
+        .message-content pre {
+            background-color: #f8f8f8;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
 
-    .typing-dot:nth-child(3) {
-      animation-delay: 0.4s;
-    }
-
-    @keyframes typing {
-
-      0%,
-      60%,
-      100% {
-        transform: translateY(0);
-      }
-
-      30% {
-        transform: translateY(-4px);
-      }
-    }
-
-    .input-container {
-      display:          flex;
-      gap:              0.5rem;
-      padding:          0.5rem;
-      background-color: white;
-      border-radius:    0.5rem;
-      box-shadow:       0 1px 3px rgba(0, 0, 0, 0.1);
-      border:           1px solid var(--border-color);
-    }
-
-    #message-input {
-      flex:          1;
-      padding:       0.75rem 1rem;
-      border:        1px solid var(--border-color);
-      border-radius: 0.5rem;
-      font-size:     1rem;
-      outline:       none;
-      transition:    border-color 0.2s;
-    }
-
-    #message-input:focus {
-      border-color: var(--primary-color);
-      box-shadow:   0 0 0 2px rgba(79, 70, 229, 0.2);
-    }
-
-    #send-button {
-      padding:          0.75rem 1.5rem;
-      background-color: var(--primary-color);
-      color:            white;
-      border:           none;
-      border-radius:    0.5rem;
-      cursor:           pointer;
-      font-weight:      500;
-      transition:       background-color 0.2s;
-    }
-
-    #send-button:hover {
-      background-color: #4338ca;
-    }
-
-    #send-button:disabled {
-      background-color: #9ca3af;
-      cursor:           not-allowed;
-    }
-
-    .message-time {
-      font-size:  0.75rem;
-      color:      #6b7280;
-      margin-top: 0.25rem;
-      text-align: right;
-    }
-
-    .message-header {
-      font-weight:   600;
-      margin-bottom: 0.25rem;
-      color:         var(--primary-color);
-    }
-
-    .message-content {
-      white-space: pre-wrap;
-      word-wrap:   break-word;
-    }
-
-    .message-content pre {
-      background-color: #f3f4f6;
-      padding:          1rem;
-      border-radius:    0.5rem;
-      overflow-x:       auto;
-      margin:           0.5rem 0;
-    }
-
-    .message-content code {
-      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-      font-size:   0.9em;
-    }
-  </style>
+        .message-content code {
+            background-color: #f8f8f8;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+    </style>
 </head>
-
 <body>
-<div class="container">
-  <header class="header">
-    <h1>RAGnarok Chat</h1>
-  </header>
+    <div class="chat-container">
+        <div class="chat-messages" id="messages"></div>
+        <div class="input-container">
+            <textarea id="userInput" placeholder="Type your message here..." rows="3"></textarea>
+            <button id="sendButton">Send</button>
+        </div>
+    </div>
 
-  <div class="chat-container" id="chat-container">
-    <!-- Messages will be added here dynamically -->
-  </div>
+    <script>
+        const messagesContainer = document.getElementById('messages');
+        const userInput = document.getElementById('userInput');
+        const sendButton = document.getElementById('sendButton');
 
-  <div class="input-container">
-    <input type="text" id="message-input" placeholder="Type your question ..." autocomplete="off">
-    <button id="send-button" onclick="sendMessage()" disabled>Send</button>
-  </div>
-</div>
-
-<script>
-  const chatContainer           = document.getElementById('chat-container');
-  const messageInput            = document.getElementById('message-input');
-  const sendButton              = document.getElementById('send-button');
-  let eventSource               = null;
-  let currentAssistantMessageId = null;
-
-  // Enable/disable send button based on input
-  messageInput.addEventListener('input', () => {
-    sendButton.disabled = messageInput.value.trim() === '';
-  });
-
-  // Add a message to the chat
-  function addMessage(role, content, messageId = null) {
-    const messageDiv     = document.createElement('div');
-    messageDiv.className = `message ${role}-message`;
-    messageDiv.id        = messageId || `msg-${Date.now()}`;
-
-    const header       = document.createElement('div');
-    header.className   = 'message-header';
-    header.textContent = role === 'user' ? 'You' : 'Assistant';
-
-    const contentDiv     = document.createElement('div');
-    contentDiv.className = 'message-content';
-    contentDiv.innerHTML = content.replace(/\n/g, '<br>');
-
-    const timeDiv       = document.createElement('div');
-    timeDiv.className   = 'message-time';
-    timeDiv.textContent = new Date().toLocaleTimeString();
-
-    messageDiv.appendChild(header);
-    messageDiv.appendChild(contentDiv);
-    messageDiv.appendChild(timeDiv);
-
-    chatContainer.appendChild(messageDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-
-    return messageDiv.id;
-  }
-
-  // Show typing indicator
-  function showTypingIndicator() {
-    const typingDiv     = document.createElement('div');
-    typingDiv.className = 'typing-indicator';
-    typingDiv.id        = 'typing-indicator';
-    typingDiv.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 4px;">
-                    <span>Assistant is typing</span>
-                    <span class="typing-dot"></span>
-                    <span class="typing-dot"></span>
-                    <span class="typing-dot"></span>
-                </div>
-            `;
-    chatContainer.appendChild(typingDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-  }
-
-  // Hide typing indicator
-  function hideTypingIndicator() {
-    const typingIndicator = document.getElementById('typing-indicator');
-    if (typingIndicator) {
-      typingIndicator.remove();
-    }
-  }
-
-  // Send message to the server
-  function sendMessage() {
-    const message = messageInput.value.trim();
-    if (!message) return;
-
-    // Add user message to chat
-    addMessage('user', message);
-
-    // Clear input
-    messageInput.value  = '';
-    sendButton.disabled = true;
-
-    // Show typing indicator
-    showTypingIndicator();
-
-    // Close any existing SSE connection
-    if (eventSource) {
-      eventSource.close();
-    }
-
-    // Create a new message for the assistant's response
-    currentAssistantMessageId = `assistant-${Date.now()}`;
-    const messageDiv          = document.createElement('div');
-    messageDiv.className      = 'message assistant-message';
-    messageDiv.id             = currentAssistantMessageId;
-
-    const header       = document.createElement('div');
-    header.className   = 'message-header';
-    header.textContent = 'Assistant';
-
-    const contentDiv     = document.createElement('div');
-    contentDiv.className = 'message-content';
-
-    const timeDiv       = document.createElement('div');
-    timeDiv.className   = 'message-time';
-    timeDiv.textContent = new Date().toLocaleTimeString();
-
-    messageDiv.appendChild(header);
-    messageDiv.appendChild(contentDiv);
-    messageDiv.appendChild(timeDiv);
-
-    chatContainer.appendChild(messageDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-
-    // Set up fetch request with streaming
-    fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'text/event-stream'
-      },
-      body: JSON.stringify({question: message})
-    })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        function addMessage(content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.textContent = content;
+            
+            messageDiv.appendChild(contentDiv);
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
-        const reader  = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer    = '';
+        function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
 
-        function readChunk() {
-          return reader.read().then(({done, value}) => {
-            if (done) {
-              hideTypingIndicator();
-              return;
-            }
+            // Disable input and button while processing
+            userInput.disabled = true;
+            sendButton.disabled = true;
 
-            // Decode the chunk and process it
-            const chunk = decoder.decode(value, {stream: true});
-            buffer += chunk;
+            // Add user message
+            addMessage(message);
 
-            // Process complete events (each event is separated by double newlines)
-            const events = buffer.split('\n\n');
-            buffer       = events.pop() || ''; // Keep incomplete event in buffer
+            // Clear input
+            userInput.value = '';
 
-            for (const event of events) {
-              if (event.startsWith('data: ')) {
-                const data = event.slice(6).trim();
-                if (data === '[DONE]') {
-                  reader.cancel();
-                  hideTypingIndicator();
-                  return;
+            // Create SSE connection for POST request
+            const encoder = new TextEncoder();
+            const body = JSON.stringify({
+                question: message
+            });
+            
+            // Create a ReadableStream from the request body
+            const stream = new ReadableStream({
+                start(controller) {
+                    controller.enqueue(encoder.encode(body));
+                    controller.close();
+                }
+            });
+
+            // Create POST request with the stream
+            fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'text/event-stream'
+                },
+                body: body
+            }).then(response => {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let responseText = '';
+
+                function readStream() {
+                    reader.read().then(({done, value}) => {
+                        if (done) {
+                            return;
+                        }
+                        
+                        // Decode and append the received chunk
+                        const chunk = decoder.decode(value, {stream: true});
+                        
+                        // Split the chunk into SSE messages
+                        const messages = chunk.split('\n').filter(line => line.startsWith('data: '));
+                        
+                        for (const message of messages) {
+                            const data = message.substring(6); // Remove 'data: ' prefix
+                            console.log('Received data:', data);
+                            // Replace escaped newlines with actual newlines
+                            responseText += data.replace(/\\n/g, '\n');
+                            
+                            // Update the last message with the accumulated response
+                            const lastMessage = messagesContainer.lastElementChild;
+                            if (lastMessage) {
+                                const contentDiv = lastMessage.querySelector('.message-content');
+                                contentDiv.textContent = responseText;
+                                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                            }
+                        }
+                        
+                        // Continue reading
+                        readStream();
+                    }).catch(error => {
+                        console.error('Error reading stream:', error);
+                        // Re-enable input and button
+                        userInput.disabled = false;
+                        sendButton.disabled = false;
+                        userInput.focus();
+                    });
                 }
 
-                // Append the new token to the assistant's message with proper spacing
-                const contentDiv = document.querySelector(`#${currentAssistantMessageId} .message-content`);
-                if (contentDiv) {
-                  // Add a space before the token if it's not the first character
-                  const shouldAddSpace = contentDiv.innerHTML.length > 0 &&
-                    !contentDiv.innerHTML.endsWith(' ') &&
-                    !contentDiv.innerHTML.endsWith('<br>') &&
-                    !contentDiv.innerHTML.endsWith('<pre>') &&
-                    !contentDiv.innerHTML.endsWith('<code>') &&
-                    !data.match(/^[.,!?;:)]/); // Don't add space before these characters
+                readStream();
+            }).catch(error => {
+                console.error('Error fetching:', error);
+                // Re-enable input and button
+                userInput.disabled = false;
+                sendButton.disabled = false;
+                userInput.focus();
+            });
 
-                  // Handle code block endings
-                  if (data === '</code></pre>') {
-                    contentDiv.innerHTML += data;
-                  } else {
-                    contentDiv.innerHTML += (shouldAddSpace ? ' ' : '') + data;
-                  }
-                  chatContainer.scrollTop = chatContainer.scrollHeight;
-                }
-              }
+            // The error handling is now moved into the fetch.catch blocks
+        }
+
+        // Event listeners
+        sendButton.addEventListener('click', sendMessage);
+        
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
             }
-
-            // Read the next chunk
-            return readChunk();
-          });
-        }
-
-        // Start reading the stream
-        return readChunk();
-      })
-      .catch(error => {
-        console.error('Fetch error:', error);
-        hideTypingIndicator();
-
-        const contentDiv = document.querySelector(`#${currentAssistantMessageId} .message-content`);
-        if (contentDiv && !contentDiv.textContent.trim()) {
-          contentDiv.textContent = 'Sorry, something went wrong. Please try again.';
-        }
-      });
-  }
-
-  // Add event listeners when the page loads
-  window.addEventListener('load', () => {
-    messageInput.focus();
-
-    // Add Enter key event listener
-    messageInput.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        sendMessage();
-      }
-    });
-  });
-</script>
+        });
+    </script>
 </body>
-
 </html>

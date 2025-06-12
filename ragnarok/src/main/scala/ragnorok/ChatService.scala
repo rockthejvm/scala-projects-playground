@@ -46,9 +46,11 @@ object ChatService:
 
               tokenStream
                 .onPartialResponse { token =>
-                  val data =
-                    if token.matches("\\n+") then "<p />"
-                    else token
+                  println(s"Token: '$token'")
+
+                  val data = token.replace("\n", "\\n")
+                    /*if token.matches("\\n+") then "<p />"
+                    else token*/
 
                   val event = s"data: $data\n\n"
                   channel.send(event).attempt.void.unsafeRunSync()
