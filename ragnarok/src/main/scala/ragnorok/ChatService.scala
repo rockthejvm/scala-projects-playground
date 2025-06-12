@@ -121,7 +121,7 @@ object ChatService:
       .modelName("text-embedding-ada-002")
       .build()
 
-  ingestDocuments().start.void
+  ingestDocuments()
 
   val chatModel: StreamingChatModel =
     OpenAiStreamingChatModel
@@ -144,23 +144,20 @@ object ChatService:
       )
       .build()
 
-  private def ingestDocuments(): IO[Unit] =
-    logger.info("Ingesting documents ...") *>
-      IO {
-        val textSegments = documents.asScala
-          .flatMap { doc =>
-            logger.info(s"  Processing document: ${doc.metadata().getString("path")}").unsafeRunAndForget()
-            val splitter = DocumentSplitters.recursive(1000, 200)
-            splitter.split(doc).asScala.map(segment => TextSegment.from(segment.text(), doc.metadata()))
-          }
-          .toList
-          .asJava
+  private def ingestDocuments(): Unit = {
+    val textSegments =
+      documents.asScala
+        .flatMap { doc =>
+          logger.info(s"  Processing document: ${doc.metadata().getString("path")}").unsafeRunAndForget()
+          val splitter = DocumentSplitters.recursive(1000, 200)
+          splitter.split(doc).asScala.map(segment => TextSegment.from(segment.text(), doc.metadata()))
+        }
+        .toList
+        .asJava
 
-        val embeddings = embeddingModel.embedAll(textSegments).content()
-        embeddingStore.addAll(embeddings, textSegments)
-
-        ()
-      }
+    val embeddings = embeddingModel.embedAll(textSegments).content()
+    embeddingStore.addAll(embeddings, textSegments)
+  }
 
   private def readOpenAiApiKey: String =
     Option(System.getenv("OPENAI_API_KEY")).getOrElse {
