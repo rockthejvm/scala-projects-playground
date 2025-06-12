@@ -48,13 +48,13 @@ object Main extends IOApp.Simple {
       .pure[IO]
   }
 
-  private val httpAppWithLogging = HttpLogger.httpApp(logHeaders = true, logBody = true)(
+  private val httpAppWithLogging = //HttpLogger.httpApp(logHeaders = true, logBody = true)(
     Router(
       "/"       -> rootRedirect,
       "/static" -> resourceServiceBuilder[IO]("static").toRoutes,
       "/api"    -> (ChatService.routes(using logger) <+> HealthService.routes)
     ).orNotFound
-  )
+  //)
 
   private val serverConfig: Resource[IO, Server] =
     EmberServerBuilder
