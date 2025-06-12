@@ -1,259 +1,291 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat Interface</title>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script>
-        // Configure marked to not normalize newlines
-        marked.use({
-            gfm: true,
-            breaks: true
-        });
-    </script>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Interface</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script>
+    // Configure marked to not normalize newlines
+    marked.use({
+      gfm: true,
+      breaks: true
+    });
+  </script>
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f5f5f5;
+    }
 
-        .chat-container {
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            margin-bottom: 20px;
-        }
+    body {
+      display: flex;
+      flex-direction: column;
+      max-width: 1024px;
+      margin: 0 auto;
+      padding: 20px;
+      box-sizing: border-box;
+      height: 100vh;
+    }
 
-        .chat-messages {
-            height: 500px;
-            overflow-y: auto;
-            margin-bottom: 20px;
-            padding: 10px;
-            border: 1px solid #e0e0e0;
-            border-radius: 5px;
-        }
+    .header {
+      margin-bottom: 20px;
+      text-align: center;
+    }
 
-        .message {
-            margin-bottom: 20px;
-            padding: 10px;
-            border-radius: 5px;
-        }
+    .header h1 {
+      margin: 0;
+      color: #2c3e50;
+      text-shadow: 5px 6px 2px rgba(0, 0, 0, 0.1);
+      font-size: 2.5em;
+    }
 
-        .message-content {
-            line-height: 1.5;
-        }
+    .chat-container {
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      /* Needed for Firefox */
+    }
 
-        .message-content pre {
-            background-color: #f6f8fa;
-            border-radius: 6px;
-            padding: 16px;
-            overflow-x: auto;
-        }
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      margin-bottom: 20px;
+      padding: 10px;
+      border: 1px solid #e0e0e0;
+      border-radius: 5px;
+      min-height: 0;
+      /* Needed for Firefox */
+    }
 
-        .message-content code {
-            font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
-            font-size: 0.9em;
-            background-color: rgba(175, 184, 193, 0.2);
-            padding: 0.2em 0.4em;
-            border-radius: 6px;
-        }
+    .message {
+      margin-bottom: 20px;
+      padding: 10px;
+      border-radius: 5px;
+    }
 
-        .message-content pre code {
-            background-color: transparent;
-            padding: 0;
-            font-size: 1em;
-        }
+    .message-content {
+      line-height: 1.5;
+    }
 
-        .input-container {
-            display: flex;
-            gap: 10px;
-        }
+    .message-content pre {
+      background-color: #f6f8fa;
+      border-radius: 6px;
+      padding: 16px;
+      overflow-x: auto;
+    }
 
-        textarea {
-            flex-grow: 1;
-            padding: 10px;
-            border: 1px solid #e0e0e0;
-            border-radius: 5px;
-            resize: vertical;
-            min-height: 60px;
-            font-family: inherit;
-        }
+    .message-content code {
+      font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+      font-size: 0.9em;
+      background-color: rgba(175, 184, 193, 0.2);
+      padding: 0.2em 0.4em;
+      border-radius: 6px;
+    }
 
-        button {
-            padding: 10px 20px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-        }
+    .message-content pre code {
+      background-color: transparent;
+      padding: 0;
+      font-size: 1em;
+    }
 
-        button:hover {
-            background-color: #0056b3;
-        }
+    .input-container {
+      display: flex;
+      gap: 10px;
+    }
 
-        button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
+    textarea {
+      flex-grow: 1;
+      padding: 10px;
+      border: 1px solid #e0e0e0;
+      border-radius: 5px;
+      resize: vertical;
+      min-height: 60px;
+      font-family: inherit;
+    }
 
-        /* Markdown Styles */
-        .message-content pre {
-            background-color: #f8f8f8;
-            padding: 10px;
-            border-radius: 5px;
-            overflow-x: auto;
-        }
+    button {
+      padding: 10px 20px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
 
-        .message-content code {
-            background-color: #f8f8f8;
-            padding: 2px 4px;
-            border-radius: 3px;
-        }
-    </style>
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+
+    /* Markdown Styles */
+    .message-content pre {
+      background-color: #f8f8f8;
+      padding: 10px;
+      border-radius: 5px;
+      overflow-x: auto;
+    }
+
+    .message-content code {
+      background-color: #f8f8f8;
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+  </style>
 </head>
+
 <body>
-    <div class="header">
-      <h1>RAGnarok Chat</h1>
+  <div class="header">
+    <h1>RAGnarok Chat</h1>
+  </div>
+  <div class="chat-container">
+    <div class="chat-messages" id="messages"></div>
+    <div class="input-container">
+      <textarea id="userInput" placeholder="Type your message here..." rows="3"></textarea>
+      <button id="sendButton">Send</button>
     </div>
-    <div class="chat-container">
-        <div class="chat-messages" id="messages"></div>
-        <div class="input-container">
-            <textarea id="userInput" placeholder="Type your message here..." rows="3"></textarea>
-            <button id="sendButton">Send</button>
-        </div>
-    </div>
+  </div>
 
-    <script>
-        const messagesContainer = document.getElementById('messages');
-        const userInput = document.getElementById('userInput');
-        const sendButton = document.getElementById('sendButton');
+  <script>
+    const messagesContainer = document.getElementById('messages');
+    const userInput = document.getElementById('userInput');
+    const sendButton = document.getElementById('sendButton');
 
-        function addMessage(content) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'message';
-            
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'message-content';
-            contentDiv.innerHTML = marked.parse(content);
-            
-            messageDiv.appendChild(contentDiv);
-            messagesContainer.appendChild(messageDiv);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    function addMessage(content) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = 'message';
+
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'message-content';
+      contentDiv.innerHTML = marked.parse(content);
+
+      messageDiv.appendChild(contentDiv);
+      messagesContainer.appendChild(messageDiv);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function sendMessage() {
+      const message = userInput.value.trim();
+      if (!message) return;
+
+      // Disable input and button while processing
+      userInput.disabled = true;
+      sendButton.disabled = true;
+
+      // Add user message
+      addMessage(message);
+
+      // Clear input
+      userInput.value = '';
+
+      // Create SSE connection for POST request
+      const encoder = new TextEncoder();
+      const body = JSON.stringify({
+        question: message
+      });
+
+      // Create a ReadableStream from the request body
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode(body));
+          controller.close();
         }
+      });
 
-        function sendMessage() {
-            const message = userInput.value.trim();
-            if (!message) return;
+      // Create POST request with the stream
+      fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream'
+        },
+        body: body
+      }).then(response => {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let responseText = '';
 
-            // Disable input and button while processing
-            userInput.disabled = true;
-            sendButton.disabled = true;
-
-            // Add user message
-            addMessage(message);
-
-            // Clear input
-            userInput.value = '';
-
-            // Create SSE connection for POST request
-            const encoder = new TextEncoder();
-            const body = JSON.stringify({
-                question: message
-            });
-            
-            // Create a ReadableStream from the request body
-            const stream = new ReadableStream({
-                start(controller) {
-                    controller.enqueue(encoder.encode(body));
-                    controller.close();
-                }
-            });
-
-            // Create POST request with the stream
-            fetch('/api/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'text/event-stream'
-                },
-                body: body
-            }).then(response => {
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let responseText = '';
-
-                function readStream() {
-                    reader.read().then(({done, value}) => {
-                        if (done) {
-                            // Re-enable input and button when stream is complete
-                            userInput.disabled = false;
-                            sendButton.disabled = false;
-                            userInput.focus();
-                            return;
-                        }
-                        
-                        // Decode and append the received chunk
-                        const chunk = decoder.decode(value, {stream: true});
-                        
-                        // Split the chunk into SSE messages
-                        const messages = chunk.split('\n').filter(line => line.startsWith('data: '));
-                        
-                        for (const message of messages) {
-                            const data = message.substring(6); // Remove 'data: ' prefix
-                            console.log('Received data:', data);
-                            // Replace escaped newlines with actual newlines
-                            responseText += data.replace(/\\n/g, '\n');
-                            
-                            // Update the last message with the accumulated response
-                            const lastMessage = messagesContainer.lastElementChild;
-                            if (lastMessage) {
-                                const contentDiv = lastMessage.querySelector('.message-content');
-                                // Remove trailing {} and then parse markdown
-                                const cleanText = responseText.replace(/\{\}$/, '').trim();
-                                contentDiv.innerHTML = marked.parse(cleanText);
-                                messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                            }
-                        }
-                        
-                        // Continue reading
-                        readStream();
-                    }).catch(error => {
-                        console.error('Error reading stream:', error);
-                        // Re-enable input and button
-                        userInput.disabled = false;
-                        sendButton.disabled = false;
-                        userInput.focus();
-                    });
-                }
-
-                readStream();
-            }).catch(error => {
-                console.error('Error fetching:', error);
-                // Re-enable input and button
-                userInput.disabled = false;
-                sendButton.disabled = false;
-                userInput.focus();
-            });
-
-            // The error handling is now moved into the fetch.catch blocks
-        }
-
-        // Event listeners
-        sendButton.addEventListener('click', sendMessage);
-        
-        userInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
+        function readStream() {
+          reader.read().then(({ done, value }) => {
+            if (done) {
+              // Re-enable input and button when stream is complete
+              userInput.disabled = false;
+              sendButton.disabled = false;
+              userInput.focus();
+              return;
             }
-        });
-    </script>
+
+            // Decode and append the received chunk
+            const chunk = decoder.decode(value, { stream: true });
+
+            // Split the chunk into SSE messages
+            const messages = chunk.split('\n').filter(line => line.startsWith('data: '));
+
+            for (const message of messages) {
+              const data = message.substring(6); // Remove 'data: ' prefix
+              console.log('Received data:', data);
+              // Replace escaped newlines with actual newlines
+              responseText += data.replace(/\\n/g, '\n');
+
+              // Update the last message with the accumulated response
+              const lastMessage = messagesContainer.lastElementChild;
+              if (lastMessage) {
+                const contentDiv = lastMessage.querySelector('.message-content');
+                // Remove trailing {} and then parse markdown
+                const cleanText = responseText.replace(/\{\}$/, '').trim();
+                contentDiv.innerHTML = marked.parse(cleanText);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+              }
+            }
+
+            // Continue reading
+            readStream();
+          }).catch(error => {
+            console.error('Error reading stream:', error);
+            // Re-enable input and button
+            userInput.disabled = false;
+            sendButton.disabled = false;
+            userInput.focus();
+          });
+        }
+
+        readStream();
+      }).catch(error => {
+        console.error('Error fetching:', error);
+        // Re-enable input and button
+        userInput.disabled = false;
+        sendButton.disabled = false;
+        userInput.focus();
+      });
+
+      // The error handling is now moved into the fetch.catch blocks
+    }
+
+    // Event listeners
+    sendButton.addEventListener('click', sendMessage);
+
+    userInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+  </script>
 </body>
+
 </html>
