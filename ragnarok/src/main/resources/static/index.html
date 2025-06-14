@@ -197,7 +197,7 @@
       return messageDiv;
     }
 
-    function sendMessage() {
+    async function sendMessage() {
       const message = userInput.value.trim();
       if (!message) return;
 
@@ -210,90 +210,113 @@
       
       // Add initial assistant message div
       const assistantMessageDiv = addMessage('...');
+      const contentDiv = assistantMessageDiv.querySelector('.message-content');
 
       // Clear input
       userInput.value = '';
 
-      // Create SSE connection for POST request
-      const encoder = new TextEncoder();
-      const body = JSON.stringify({
-        question: message
-      });
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'text/event-stream'
+          },
+          body: JSON.stringify({ question: message })
+        });
 
-      // Create a ReadableStream from the request body
-      const stream = new ReadableStream({
-        start(controller) {
-          controller.enqueue(encoder.encode(body));
-          controller.close();
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-      });
 
-      // Create POST request with the stream
-      fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'text/event-stream'
-        },
-        body: body
-      }).then(response => {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
+        let buffer = '';
         let responseText = '';
+        let references = [];
 
-        function readStream() {
-          reader.read().then(({ done, value }) => {
-            if (done) {
-              // Re-enable input and button when stream is complete
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          // Process the chunk
+          const chunk = decoder.decode(value, { stream: true });
+          buffer += chunk;
+
+          // Split by double newlines to handle complete SSE messages
+          const events = buffer.split('\n\n');
+          buffer = events.pop() || '';
+
+          for (const event of events) {
+            const lines = event.split('\n');
+            let data = '';
+            
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                data = line.substring(6).trim();
+              }
+            }
+
+            
+            if (!data || data === '[DONE]') {
+              // Stream is complete
               userInput.disabled = false;
               sendButton.disabled = false;
               userInput.focus();
               return;
             }
 
-            // Decode and append the received chunk
-            const chunk = decoder.decode(value, { stream: true });
 
-            // Split the chunk into SSE messages
-            const messages = chunk.split('\n').filter(line => line.startsWith('data: '));
+            try {
+              // Try to parse the data as JSON
+              try {
+                if (data === '[DONE]') {
+                  return;
+                }
 
-            for (const message of messages) {
-              const data = message.substring(6); // Remove 'data: ' prefix
-              console.log('Received data:', data);
-              // Replace escaped newlines with actual newlines
-              responseText += data.replace(/\\n/g, '\n');
-
-              // Update the assistant's message with the accumulated response
-              const contentDiv = assistantMessageDiv.querySelector('.message-content');
-              if (contentDiv) {
-                // Remove trailing {} and then parse markdown
-                const cleanText = responseText.replace(/\{\}$/, '').trim();
-                contentDiv.innerHTML = marked.parse(cleanText);
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                const parsed = JSON.parse(data);
+                if (parsed.content) {
+                  // Append the new content
+                  responseText += parsed.content;
+                }
+                
+                // Update references if present
+                if (parsed.references && Array.isArray(parsed.references)) {
+                  references = parsed.references;
+                }
+              } catch (e) {
+                console.error('Error parsing message:', e, 'Data:', data);
+                // If it's not valid JSON, just append it as text
+                if (data && data !== '[DONE]') {
+                  responseText += data;
+                }
               }
+              
+              // Always update the display with the latest content and references
+              let displayText = responseText;
+              if (references.length > 0) {
+                displayText += '\n\n**References:**\n' + 
+                  references.map(ref => `- ${ref}`).join('\n');
+              }
+              
+              // Only update the content if we have something to show
+              if (displayText.trim()) {
+                contentDiv.innerHTML = marked.parse(displayText);
+              }
+              messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            } catch (e) {
+              console.error('Error updating message:', e, 'Data:', data);
+              contentDiv.textContent = 'Error: ' + (e.message || 'Failed to process response');
             }
-
-            // Continue reading
-            readStream();
-          }).catch(error => {
-            console.error('Error reading stream:', error);
-            // Re-enable input and button
-            userInput.disabled = false;
-            sendButton.disabled = false;
-            userInput.focus();
-          });
+          }
         }
-
-        readStream();
-      }).catch(error => {
-        console.error('Error fetching:', error);
-        // Re-enable input and button
+      } catch (error) {
+        console.error('Error:', error);
+        contentDiv.textContent = 'Error: ' + (error.message || 'Failed to get response');
         userInput.disabled = false;
         sendButton.disabled = false;
         userInput.focus();
-      });
-
-      // The error handling is now moved into the fetch.catch blocks
+      }
     }
 
     // Event listeners

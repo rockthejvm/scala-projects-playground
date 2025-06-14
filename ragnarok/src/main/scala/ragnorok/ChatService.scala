@@ -2,6 +2,8 @@ package ragnorok
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import io.circe.syntax.*
+import io.circe.Json
 import dev.langchain4j.data.document.loader.FileSystemDocumentLoader.loadDocumentsRecursively
 import dev.langchain4j.data.document.parser.TextDocumentParser
 import dev.langchain4j.data.document.splitter.DocumentSplitters
@@ -10,10 +12,11 @@ import dev.langchain4j.memory.chat.MessageWindowChatMemory
 import dev.langchain4j.model.chat.StreamingChatModel
 import dev.langchain4j.model.openai.{OpenAiEmbeddingModel, OpenAiStreamingChatModel}
 import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever
+import dev.langchain4j.rag.query.Query
 import dev.langchain4j.service.AiServices
 import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore
+import fs2.Stream
 import fs2.concurrent.Channel
-import fs2.{Chunk, Stream}
 import org.http4s.*
 import org.http4s.dsl.io.*
 import org.http4s.headers.`Content-Type`
@@ -36,53 +39,90 @@ object ChatService:
   def routes(implicit logger: Logger[IO]): HttpRoutes[IO] =
     HttpRoutes.of[IO] { case req @ POST -> Root / "chat" =>
       logger.info("Received chat request") *> {
-        (
-          for {
-            chatReq <- req.as[ChatRequest]
-            channel <- Channel.unbounded[IO, String]
-
-            _ <- IO {
-              val tokenStream = ChatService.assistant.chat(chatReq.question)
-
-              tokenStream
-                .onPartialResponse { token =>
-                  val data  = token.replace("\n", "\\n")
-                  val event = s"data: $data\n\n"
-                  channel.send(event).attempt.void.unsafeRunSync()
+        (for {
+          chatReq <- req.as[ChatRequest]
+          channel <- Channel.unbounded[IO, String]
+          
+          // Start the chat stream in the background
+          _ <- IO {
+            val stream = ChatService.assistant.chat(chatReq.question)
+            
+            // Buffer to accumulate tokens until we have a complete chunk
+            var buffer = new StringBuilder()
+            
+            stream
+              .onPartialResponse { token =>
+                // Add token to buffer
+                buffer.append(token)
+                
+                // If we have a reasonable chunk size or a natural breakpoint, send it
+                if (buffer.length > 20 || token.matches("\\s|\\.|,|;|:")) {
+                  val chunk = buffer.toString()
+                  buffer = new StringBuilder()
+                  val json = Json.obj("content" -> Json.fromString(chunk))
+                  val event = s"data: ${json.noSpaces}\n\n"
+                  channel.send(event).unsafeRunSync()
                 }
-                .onCompleteResponse { _ =>
-                  (channel.send("event: done\ndata: {}\n\n") *> channel.close.attempt.void)
-                    .unsafeRunSync()
-                }
-                .onError { error =>
-                  (channel.send(s"event: error\ndata: ${error.getMessage}\n\n") *> channel.close.attempt.void)
-                    .unsafeRunSync()
-                }
-                .start()
-            }.start
-
-            responseStream = channel.stream
-              .evalMap(event => IO(event))
-              .flatMap { event =>
-                Stream.chunk(Chunk.array(event.getBytes))
               }
-
-            response <- Ok(
-              responseStream,
-              `Content-Type`(MediaType.unsafeParse("text/event-stream"))
-            ).map(
-              _.withHeaders(
-                Header.Raw(CIString("Cache-Control"), "no-cache"),
-                Header.Raw(CIString("Connection"), "keep-alive"),
-                Header.Raw(CIString("X-Accel-Buffering"), "no"), // For Nginx
-                Header.Raw(CIString("Transfer-Encoding"), "chunked"),
-                Header.Raw(CIString("Content-Type"), "text/event-stream; charset=utf-8")
-              )
+              .onCompleteResponse { _ =>
+                // Send any remaining content in the buffer
+                if (buffer.nonEmpty) {
+                  val json = Json.obj("content" -> Json.fromString(buffer.toString()))
+                  val event = s"data: ${json.noSpaces}\n\n"
+                  channel.send(event).unsafeRunSync()
+                }
+                // Send completion signal
+                channel.send("data: [DONE]\n\n").unsafeRunSync()
+                channel.close.attempt.void.unsafeRunSync()
+              }
+              .onError { error =>
+                channel.send(s"event: error\ndata: ${error.getMessage}\n\n").unsafeRunAndForget()
+                channel.close.attempt.void.unsafeRunAndForget()
+              }
+              .start()
+          }.start
+          
+          // Start the retrieval in the background
+          _ <- IO {
+            val query = Query.from(chatReq.question)
+            val relevantContent = contentRetriever.retrieve(query)
+            val references = relevantContent.asScala.toList.flatMap { content =>
+              val metadata = content.textSegment().metadata()
+              val path = Option(metadata.getString("file_name")).getOrElse("unknown")
+              if (path != "unknown") Some(path) else None
+            }.distinct
+            
+            // Log the references
+            logger.info(s"Found references: ${references.mkString(", ")}").unsafeRunAndForget()
+            
+            // Send references as a separate event
+            val refsEvent = ChatStreamResponse("", references)
+            channel.send(ChatStreamResponse.toEventString(refsEvent)).unsafeRunAndForget()
+          }.handleErrorWith { error =>
+            logger.error(error)("Error during retrieval") *> 
+            channel.send(s"event: error\ndata: ${error.getMessage}\n\n") *>
+            channel.close.attempt.void
+          }
+          
+          // Create the response
+          response = {
+            val body = channel.stream.flatMap(str => Stream.emits(str.getBytes))
+            val headers = Headers(
+              `Content-Type`(MediaType.unsafeParse("text/event-stream")),
+              Header.Raw(CIString("Cache-Control"), "no-cache"),
+              Header.Raw(CIString("Connection"), "keep-alive"),
+              Header.Raw(CIString("X-Accel-Buffering"), "no"),
+              Header.Raw(CIString("Transfer-Encoding"), "chunked")
             )
-          } yield response
-        ).handleErrorWith { error =>
+            Response[IO](
+              status = Status.Ok,
+              body = body,
+              headers = headers
+            )
+          }
+        } yield response).handleErrorWith { error =>
           logger.error(s"Error processing chat request: ${error.getMessage}") *>
-            InternalServerError(error.getMessage)
+          InternalServerError(error.getMessage)
         }
       }
     }
@@ -103,18 +143,19 @@ object ChatService:
       .modelName("gpt-4o-mini")
       .build()
 
+  private val contentRetriever = 
+    EmbeddingStoreContentRetriever
+      .builder()
+      .embeddingStore(embeddingStore)
+      .embeddingModel(embeddingModel)
+      .build()
+
   val assistant: Assistant =
     AiServices
       .builder(classOf[Assistant])
       .streamingChatModel(chatModel)
       .chatMemory(MessageWindowChatMemory.withMaxMessages(10))
-      .contentRetriever(
-        EmbeddingStoreContentRetriever
-          .builder()
-          .embeddingStore(embeddingStore)
-          .embeddingModel(embeddingModel)
-          .build()
-      )
+      .contentRetriever(contentRetriever)
       .build()
 
   private def ingestDocuments(): Unit = {
