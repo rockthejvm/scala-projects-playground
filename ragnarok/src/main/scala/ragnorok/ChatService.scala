@@ -47,31 +47,13 @@ object ChatService:
           _ <- IO {
             val stream = ChatService.assistant.chat(chatReq.question)
             
-            // Buffer to accumulate tokens until we have a complete chunk
-            var buffer = new StringBuilder()
-            
             stream
               .onPartialResponse { token =>
-                // Add token to buffer
-                buffer.append(token)
-                
-                // If we have a reasonable chunk size or a natural breakpoint, send it
-                if (buffer.length > 20 || token.matches("\\s|\\.|,|;|:")) {
-                  val chunk = buffer.toString()
-                  buffer = new StringBuilder()
-                  val json = Json.obj("content" -> Json.fromString(chunk))
-                  val event = s"data: ${json.noSpaces}\n\n"
-                  channel.send(event).unsafeRunSync()
-                }
+                val json = Json.obj("content" -> Json.fromString(token))
+                val event = s"data: ${json.noSpaces}\n\n"
+                channel.send(event).unsafeRunSync()
               }
               .onCompleteResponse { _ =>
-                // Send any remaining content in the buffer
-                if (buffer.nonEmpty) {
-                  val json = Json.obj("content" -> Json.fromString(buffer.toString()))
-                  val event = s"data: ${json.noSpaces}\n\n"
-                  channel.send(event).unsafeRunSync()
-                }
-                // Send completion signal
                 channel.send("data: [DONE]\n\n").unsafeRunSync()
                 channel.close.attempt.void.unsafeRunSync()
               }
