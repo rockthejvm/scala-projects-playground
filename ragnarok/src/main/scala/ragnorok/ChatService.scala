@@ -2,7 +2,6 @@ package ragnorok
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import io.circe.syntax.*
 import io.circe.Json
 import dev.langchain4j.data.document.loader.FileSystemDocumentLoader.loadDocumentsRecursively
 import dev.langchain4j.data.document.parser.TextDocumentParser
@@ -27,14 +26,19 @@ import java.nio.file.FileSystems
 import scala.jdk.CollectionConverters.*
 
 object ChatService:
-  private val logger       = LoggerFactory[IO].getLogger
-  private val openaiApiKey = readOpenAiApiKey
-  private val DocsDir      = readDocsDir
+  private val logger         = LoggerFactory[IO].getLogger
+  private val openaiApiKey   = readOpenAiApiKey
+  private val DocsDir        = readDocsDir
+  private val embeddingStore = new InMemoryEmbeddingStore[TextSegment]()
+
   private val pathMatcher = FileSystems.getDefault.getPathMatcher(
     "glob:**/*.{scala,java,py,txt,md,mdx,json,jsonl,html,csv,tsv,pdf}"
   )
-  private val documents      = loadDocumentsRecursively(DocsDir, pathMatcher, new TextDocumentParser())
-  private val embeddingStore = new InMemoryEmbeddingStore[TextSegment]()
+
+  private val documents = {
+    logger.info(s"Loading documents from directory: $DocsDir").unsafeRunAndForget()
+    loadDocumentsRecursively(DocsDir, pathMatcher, new TextDocumentParser())
+  }
 
   def routes(implicit logger: Logger[IO]): HttpRoutes[IO] =
     HttpRoutes.of[IO] { case req @ POST -> Root / "chat" =>
@@ -42,14 +46,13 @@ object ChatService:
         (for {
           chatReq <- req.as[ChatRequest]
           channel <- Channel.unbounded[IO, String]
-          
-          // Start the chat stream in the background
+
           _ <- IO {
             val stream = ChatService.assistant.chat(chatReq.question)
-            
+
             stream
               .onPartialResponse { token =>
-                val json = Json.obj("content" -> Json.fromString(token))
+                val json  = Json.obj("content" -> Json.fromString(token))
                 val event = s"data: ${json.noSpaces}\n\n"
                 channel.send(event).unsafeRunSync()
               }
@@ -63,29 +66,26 @@ object ChatService:
               }
               .start()
           }.start
-          
-          // Start the retrieval in the background
+
           _ <- IO {
-            val query = Query.from(chatReq.question)
+            val query           = Query.from(chatReq.question)
             val relevantContent = contentRetriever.retrieve(query)
             val references = relevantContent.asScala.toList.flatMap { content =>
               val metadata = content.textSegment().metadata()
-              val path = Option(metadata.getString("file_name")).getOrElse("unknown")
+              val path     = Option(metadata.getString("file_name")).getOrElse("unknown")
               if (path != "unknown") Some(path) else None
             }.distinct
-            
-            // Log the references
+
             logger.info(s"Found references: ${references.mkString(", ")}").unsafeRunAndForget()
-            
-            // Send references as a separate event
+
             val refsEvent = ChatStreamResponse("", references)
-            channel.send(ChatStreamResponse.toEventString(refsEvent)).unsafeRunAndForget()
+            channel.send(ChatStreamResponse.toEventString(refsEvent)).unsafeRunSync()
           }.handleErrorWith { error =>
-            logger.error(error)("Error during retrieval") *> 
-            channel.send(s"event: error\ndata: ${error.getMessage}\n\n") *>
-            channel.close.attempt.void
+            logger.error(error)("Error during retrieval") *>
+              channel.send(s"event: error\ndata: ${error.getMessage}\n\n") *>
+              channel.close.attempt.void
           }
-          
+
           // Create the response
           response = {
             val body = channel.stream.flatMap(str => Stream.emits(str.getBytes))
@@ -97,14 +97,14 @@ object ChatService:
               Header.Raw(CIString("Transfer-Encoding"), "chunked")
             )
             Response[IO](
-              status = Status.Ok,
-              body = body,
+              status  = Status.Ok,
+              body    = body,
               headers = headers
             )
           }
         } yield response).handleErrorWith { error =>
           logger.error(s"Error processing chat request: ${error.getMessage}") *>
-          InternalServerError(error.getMessage)
+            InternalServerError(error.getMessage)
         }
       }
     }
@@ -116,8 +116,6 @@ object ChatService:
       .modelName("text-embedding-ada-002")
       .build()
 
-  ingestDocuments()
-
   val chatModel: StreamingChatModel =
     OpenAiStreamingChatModel
       .builder()
@@ -125,7 +123,7 @@ object ChatService:
       .modelName("gpt-4o-mini")
       .build()
 
-  private val contentRetriever = 
+  private val contentRetriever =
     EmbeddingStoreContentRetriever
       .builder()
       .embeddingStore(embeddingStore)
@@ -136,15 +134,19 @@ object ChatService:
     AiServices
       .builder(classOf[Assistant])
       .streamingChatModel(chatModel)
-      .chatMemory(MessageWindowChatMemory.withMaxMessages(10))
+      .chatMemory(MessageWindowChatMemory.withMaxMessages(15))
       .contentRetriever(contentRetriever)
       .build()
 
+  ingestDocuments()
+
   private def ingestDocuments(): Unit = {
+    logger.info("Ingesting documents for RAG...This may take a while!").unsafeRunAndForget()
+
     val textSegments =
       documents.asScala
         .flatMap { doc =>
-          logger.info(s"  Processing document: ${doc.metadata().getString("path")}").unsafeRunAndForget()
+          logger.info(s"  Processing document: ${doc.metadata().getString("file_name")}").unsafeRunAndForget()
           val splitter = DocumentSplitters.recursive(1000, 200)
           splitter.split(doc).asScala.map(segment => TextSegment.from(segment.text(), doc.metadata()))
         }
