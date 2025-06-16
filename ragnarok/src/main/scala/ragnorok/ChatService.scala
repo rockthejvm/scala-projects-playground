@@ -10,6 +10,7 @@ import dev.langchain4j.data.segment.TextSegment
 import dev.langchain4j.memory.chat.MessageWindowChatMemory
 import dev.langchain4j.model.chat.StreamingChatModel
 import dev.langchain4j.model.openai.{OpenAiEmbeddingModel, OpenAiStreamingChatModel}
+import dev.langchain4j.rag.content.Content
 import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever
 import dev.langchain4j.rag.query.Query
 import dev.langchain4j.service.AiServices
@@ -39,75 +40,6 @@ object ChatService:
     logger.info(s"Loading documents from directory: $DocsDir").unsafeRunAndForget()
     loadDocumentsRecursively(DocsDir, pathMatcher, new TextDocumentParser())
   }
-
-  def routes(implicit logger: Logger[IO]): HttpRoutes[IO] =
-    HttpRoutes.of[IO] { case req @ POST -> Root / "chat" =>
-      logger.info("Received chat request") *> {
-        (for {
-          chatReq <- req.as[ChatRequest]
-          channel <- Channel.unbounded[IO, String]
-
-          _ <- IO {
-            val stream = ChatService.assistant.chat(chatReq.question)
-
-            stream
-              .onPartialResponse { token =>
-                val json  = Json.obj("content" -> Json.fromString(token))
-                val event = s"data: ${json.noSpaces}\n\n"
-                channel.send(event).unsafeRunSync()
-              }
-              .onCompleteResponse { _ =>
-                channel.send("data: [DONE]\n\n").unsafeRunSync()
-                channel.close.attempt.void.unsafeRunSync()
-              }
-              .onError { error =>
-                channel.send(s"event: error\ndata: ${error.getMessage}\n\n").unsafeRunAndForget()
-                channel.close.attempt.void.unsafeRunAndForget()
-              }
-              .start()
-          }.start
-
-          _ <- IO {
-            val query           = Query.from(chatReq.question)
-            val relevantContent = contentRetriever.retrieve(query)
-            val references = relevantContent.asScala.toList.flatMap { content =>
-              val metadata = content.textSegment().metadata()
-              val path     = Option(metadata.getString("file_name")).getOrElse("unknown")
-              if (path != "unknown") Some(path) else None
-            }.distinct
-
-            logger.info(s"Found references: ${references.mkString(", ")}").unsafeRunAndForget()
-
-            val refsEvent = ChatStreamResponse("", references)
-            channel.send(ChatStreamResponse.toEventString(refsEvent)).unsafeRunSync()
-          }.handleErrorWith { error =>
-            logger.error(error)("Error during retrieval") *>
-              channel.send(s"event: error\ndata: ${error.getMessage}\n\n") *>
-              channel.close.attempt.void
-          }
-
-          // Create the response
-          response = {
-            val body = channel.stream.flatMap(str => Stream.emits(str.getBytes))
-            val headers = Headers(
-              `Content-Type`(MediaType.unsafeParse("text/event-stream")),
-              Header.Raw(CIString("Cache-Control"), "no-cache"),
-              Header.Raw(CIString("Connection"), "keep-alive"),
-              Header.Raw(CIString("X-Accel-Buffering"), "no"),
-              Header.Raw(CIString("Transfer-Encoding"), "chunked")
-            )
-            Response[IO](
-              status  = Status.Ok,
-              body    = body,
-              headers = headers
-            )
-          }
-        } yield response).handleErrorWith { error =>
-          logger.error(s"Error processing chat request: ${error.getMessage}") *>
-            InternalServerError(error.getMessage)
-        }
-      }
-    }
 
   val embeddingModel: OpenAiEmbeddingModel =
     OpenAiEmbeddingModel
@@ -140,6 +72,74 @@ object ChatService:
 
   ingestDocuments()
 
+  def routes(implicit logger: Logger[IO]): HttpRoutes[IO] =
+    HttpRoutes.of[IO] { case req @ POST -> Root / "chat" =>
+      logger.info("Received chat request") *> {
+        (
+          for {
+            chatReq  <- req.as[ChatRequest]
+            channel  <- Channel.unbounded[IO, String]
+            contents <- retrieveContext(chatReq.question, channel)
+
+            _ <- IO {
+              ChatService.assistant
+                .chat(chatReq.question, contents)
+                .onPartialResponse { token =>
+                  val json  = Json.obj("content" -> Json.fromString(token))
+                  val event = s"data: ${json.noSpaces}\n\n"
+                  channel.send(event).unsafeRunSync()
+                }
+                .onCompleteResponse { _ =>
+                  channel.send("data: [DONE]\n\n").unsafeRunSync()
+                  channel.close.attempt.void.unsafeRunSync()
+                }
+                .onError { error =>
+                  channel.send(s"event: error\ndata: ${error.getMessage}\n\n").unsafeRunAndForget()
+                  channel.close.attempt.void.unsafeRunAndForget()
+                }
+                .start()
+            }.start
+          } yield {
+            Response[IO](
+              status  = Status.Ok,
+              body    = channel.stream.flatMap(str => Stream.emits(str.getBytes)),
+              headers = eventStreamHeaders
+            )
+          }
+        ).handleErrorWith { error =>
+          logger.error(s"Error processing chat request: ${error.getMessage}") *>
+            InternalServerError(error.getMessage)
+        }
+      }
+    }
+
+  private def retrieveContext(question: String, channel: Channel[IO, String]): IO[List[Content]] = IO {
+    val query           = Query.from(question)
+    val relevantContent = contentRetriever.retrieve(query).asScala.toList
+
+    val references: List[String] =
+      relevantContent.flatMap { content =>
+        Option(
+          content
+            .textSegment()
+            .metadata()
+            .getString("file_name")
+        ).filterNot(_.isBlank)
+      }.distinct
+
+    logger.info(s"Found references: ${references.mkString(", ")}").unsafeRunAndForget()
+
+    val refsEvent = ChatStreamResponse("", references)
+    channel.send(ChatStreamResponse.toEventString(refsEvent)).unsafeRunSync()
+    relevantContent
+  }.handleErrorWith { error =>
+    logger.error(error)("Error during retrieval") *>
+      channel.send(s"event: error\ndata: ${error.getMessage}\n\n") *>
+      channel.close.attempt.void
+
+    IO.pure(List.empty[Content])
+  }
+
   private def ingestDocuments(): Unit = {
     logger.info("Ingesting documents for RAG...This may take a while!").unsafeRunAndForget()
 
@@ -170,3 +170,12 @@ object ChatService:
       System.exit(1)
       ""
     }
+
+  private def eventStreamHeaders =
+    Headers(
+      `Content-Type`(MediaType.unsafeParse("text/event-stream")),
+      Header.Raw(CIString("Cache-Control"), "no-cache"),
+      Header.Raw(CIString("Connection"), "keep-alive"),
+      Header.Raw(CIString("X-Accel-Buffering"), "no"),
+      Header.Raw(CIString("Transfer-Encoding"), "chunked")
+    )
