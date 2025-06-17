@@ -3,6 +3,7 @@
 .bloop
 .bsp
 .vscode
+.cursor
 .eclipse
 .metals
 .scala
