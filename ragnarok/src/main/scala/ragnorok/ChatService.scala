@@ -21,15 +21,18 @@ import org.http4s.*
 import org.http4s.dsl.io.*
 import org.http4s.headers.`Content-Type`
 import org.typelevel.ci.CIString
-import org.typelevel.log4cats.{Logger, LoggerFactory}
+import org.typelevel.log4cats.slf4j.*
+import org.typelevel.log4cats.{Logger, LoggerFactory, SelfAwareStructuredLogger}
 
 import java.nio.file.FileSystems
 import scala.jdk.CollectionConverters.*
 
+implicit val loggerFactory: LoggerFactory[IO] = Slf4jFactory.create[IO]
+
 object ChatService:
   private val logger         = LoggerFactory[IO].getLogger
-  private val openaiApiKey   = readOpenAiApiKey
-  private val DocsDir        = readDocsDir
+  private val openaiApiKey   = Utils.readOpenAiApiKey
+  private val DocsDir        = Utils.readDocsDir
   private val embeddingStore = new InMemoryEmbeddingStore[TextSegment]()
 
   private val pathMatcher = FileSystems.getDefault.getPathMatcher(
@@ -103,7 +106,7 @@ object ChatService:
             Response[IO](
               status  = Status.Ok,
               body    = channel.stream.flatMap(str => Stream.emits(str.getBytes)),
-              headers = eventStreamHeaders
+              headers = Utils.eventStreamHeaders
             )
           }
         ).handleErrorWith { error =>
@@ -157,25 +160,3 @@ object ChatService:
     embeddingStore.addAll(embeddings, textSegments)
   }
 
-  private def readOpenAiApiKey: String =
-    Option(System.getenv("OPENAI_API_KEY")).getOrElse {
-      println("*** OPENAI_API_KEY environment variable not set ***")
-      System.exit(1)
-      ""
-    }
-
-  private def readDocsDir: String =
-    Option(System.getenv("RAG_DOCS_DIR")).getOrElse {
-      println("*** RAG_DOCS_DIR environment variable not set ***")
-      System.exit(1)
-      ""
-    }
-
-  private def eventStreamHeaders =
-    Headers(
-      `Content-Type`(MediaType.unsafeParse("text/event-stream")),
-      Header.Raw(CIString("Cache-Control"), "no-cache"),
-      Header.Raw(CIString("Connection"), "keep-alive"),
-      Header.Raw(CIString("X-Accel-Buffering"), "no"),
-      Header.Raw(CIString("Transfer-Encoding"), "chunked")
-    )
