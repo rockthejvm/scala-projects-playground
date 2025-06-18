@@ -258,7 +258,27 @@
 
           try {
             const parsed = JSON.parse(content);
-            if (parsed.content) {
+            
+            // Handle references if present
+            if (parsed.references && Array.isArray(parsed.references) && parsed.references.length > 0) {
+              // Check if we already have a references section
+              let refsDiv = assistantMessageDiv.querySelector('.references');
+              if (!refsDiv) {
+                refsDiv = document.createElement('div');
+                refsDiv.className = 'references';
+                refsDiv.style.marginTop = '10px';
+                refsDiv.style.fontSize = '0.9em';
+                refsDiv.style.color = '#666';
+                refsDiv.style.borderTop = '1px solid #eee';
+                refsDiv.style.paddingTop = '8px';
+                assistantMessageDiv.appendChild(refsDiv);
+              }
+              refsDiv.innerHTML = `<strong>References:</strong><br>` + 
+                parsed.references.map(ref => `• ${ref}`).join('<br>');
+            }
+            
+            // Handle content if present
+            if (parsed.content !== undefined) {
               let currentBlock = document.getElementById('current-block');
               if (!currentBlock) {
                 currentBlock = document.createElement('span');
@@ -266,38 +286,41 @@
                 contentDiv.appendChild(currentBlock);
               }
               
-              // Accumulate content
-              currentBlock.textContent += parsed.content;
-              
-              // Check if we have a complete block
-              const text = currentBlock.textContent;
-              let shouldRender = false;
-              
-              // Don't split in the middle of a code block
-              const isInCodeBlock = (text.match(/```/g) || []).length % 2 === 1;
-              
-              if (!isInCodeBlock) {
-                if (text.includes('\n\n') || // Paragraph break
-                    text.endsWith('\n') ||   // Line break
-                    text.endsWith('. ') ||   // End of sentence
-                    text.endsWith('! ') ||   // End of exclamation
-                    text.endsWith('? ')) {   // End of question
-                  shouldRender = true;
+              // Only add content if it's not empty
+              if (parsed.content) {
+                // Accumulate content
+                currentBlock.textContent += parsed.content;
+                
+                // Check if we have a complete block
+                const text = currentBlock.textContent;
+                let shouldRender = false;
+                
+                // Don't split in the middle of a code block
+                const isInCodeBlock = (text.match(/```/g) || []).length % 2 === 1;
+                
+                if (!isInCodeBlock) {
+                  if (text.includes('\n\n') || // Paragraph break
+                      text.endsWith('\n') ||   // Line break
+                      text.endsWith('. ') ||   // End of sentence
+                      text.endsWith('! ') ||   // End of exclamation
+                      text.endsWith('? ')) {   // End of question
+                    shouldRender = true;
+                  }
+                } else {
+                  // For code blocks, only render when we see the closing ```
+                  shouldRender = text.includes('```') && (text.match(/```/g) || []).length % 2 === 0;
                 }
-              } else {
-                // For code blocks, only render when we see the closing ```
-                shouldRender = text.includes('```') && (text.match(/```/g) || []).length % 2 === 0;
-              }
 
-              if (shouldRender) {
-                // Convert the current block to markdown
-                const html = marked.parse(text);
-                currentBlock.remove();
-                contentDiv.insertAdjacentHTML('beforeend', html);
-                // Create new block for upcoming content
-                const newBlock = document.createElement('span');
-                newBlock.id = 'current-block';
-                contentDiv.appendChild(newBlock);
+                if (shouldRender) {
+                  // Convert the current block to markdown
+                  const html = marked.parse(text);
+                  currentBlock.remove();
+                  contentDiv.insertAdjacentHTML('beforeend', html);
+                  // Create new block for upcoming content
+                  const newBlock = document.createElement('span');
+                  newBlock.id = 'current-block';
+                  contentDiv.appendChild(newBlock);
+                }
               }
             }
           } catch (e) {
