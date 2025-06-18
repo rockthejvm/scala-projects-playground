@@ -69,7 +69,8 @@ object Logic:
     val textSegments =
       documents.asScala
         .flatMap { doc =>
-          logger.info(s"  Processing document: ${doc.metadata().getString("file_name")}").unsafeRunAndForget()
+          val path = java.nio.file.Paths.get(doc.metadata().getString("absolute_directory_path"), doc.metadata().getString("file_name"))
+          logger.info(s"  Processing document: $path").unsafeRunAndForget()
           val splitter = DocumentSplitters.recursive(1000, 200)
           splitter.split(doc).asScala.map(segment => TextSegment.from(segment.text(), doc.metadata()))
         }
