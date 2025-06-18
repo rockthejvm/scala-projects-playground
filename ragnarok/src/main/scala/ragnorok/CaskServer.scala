@@ -6,10 +6,13 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import dev.langchain4j.rag.query.Query
 import org.typelevel.log4cats.LoggerFactory
+import org.typelevel.log4cats.slf4j.Slf4jFactory
 import upickle.default.*
 
 import java.util.concurrent.ConcurrentHashMap
 import scala.jdk.CollectionConverters.*
+
+implicit val loggerFactory: LoggerFactory[IO] = Slf4jFactory.create[IO]
 
 object CaskServer extends cask.MainRoutes {
   private val logger        = LoggerFactory[IO].getLogger
@@ -48,12 +51,13 @@ object CaskServer extends cask.MainRoutes {
   def chat(clientName: String, question: String): Response[String] =
     if clientName.isBlank || !wsConnections.containsKey(clientName) then Response("No such client", statusCode = 400)
     else {
-      val contents = queryContext(question)
+      val contents = queryContext(question, wsConnections.get(clientName))
 
-      ChatService.assistant
+      Logic.assistant
         .chat(question, contents)
         .onPartialResponse { token =>
-          val json = writeJs(Map("content" -> token)).render()
+          // val json = writeJs(Map("content" -> token)).render()
+          val json = writeJs(ChatStreamResponse(token)).render()
           val data = s"data: $json\n\n"
           wsConnections.get(clientName).send(cask.Ws.Text(data))
         }
@@ -70,7 +74,7 @@ object CaskServer extends cask.MainRoutes {
       Response("OK", statusCode = 202)
     }
 
-  private def queryContext(question: String) = {
+  private def queryContext(question: String, actor: WsChannelActor) = {
     val query           = Query.from(question)
     val relevantContent = Logic.contentRetriever.retrieve(query).asScala.toList
 
@@ -85,6 +89,10 @@ object CaskServer extends cask.MainRoutes {
       }.distinct
 
     logger.info(s"Found references: ${references.mkString(", ")}").unsafeRunAndForget()
+
+    val refsEvent = ChatStreamResponse("", references)
+    val data      = Ws.Text(ChatStreamResponse.toEventString(refsEvent))
+    actor.send(data)
 
     relevantContent
   }
