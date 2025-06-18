@@ -9,6 +9,9 @@ import org.typelevel.log4cats.LoggerFactory
 import org.typelevel.log4cats.slf4j.Slf4jFactory
 import upickle.default.*
 
+import java.time.{ZoneId, ZonedDateTime}
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import scala.jdk.CollectionConverters.*
 
@@ -17,6 +20,10 @@ implicit val loggerFactory: LoggerFactory[IO] = Slf4jFactory.create[IO]
 object CaskServer extends cask.MainRoutes {
   private val logger        = LoggerFactory[IO].getLogger
   private val wsConnections = new ConcurrentHashMap[String, WsChannelActor]()
+
+  private val formatter = DateTimeFormatter
+    .ofPattern("EEE, MMM dd, yyyy hh:mm a SSS 'ms'", Locale.ENGLISH)
+    .withZone(ZoneId.systemDefault())
 
   @cask.websocket("/subscribe/:clientName")
   def subscribe(clientName: String): WsHandler = cask.WsHandler { connection =>
@@ -37,15 +44,21 @@ object CaskServer extends cask.MainRoutes {
     Response("OK", statusCode = 200)
   }
 
+  @cask.get("/health")
+  def health(): Response[String] =
+    val now       = ZonedDateTime.now()
+    val formatted = now.format(formatter) // DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+    Response(s"Service is up ($formatted)", statusCode = 200)
+
   @cask.staticFiles("/static")
   def staticFileRoutes(): String =
     val userDir    = System.getProperty("user.dir")
     val staticPath = os.Path(userDir) / "ragnarok" / "src" / "main" / "resources" / "static"
 
-    println(s"staticPath: $userDir")
-
-    if os.exists(staticPath) then staticPath.toString  // when running from IDE
-    else (os.Path(userDir) / ".." / "static").toString // when running from ragnarok folder on the command line
+    if os.exists(staticPath) then staticPath.toString // when running from IDE
+    else
+      // when running from ragnarok folder on the command line
+      (os.Path(userDir) / "src" / "main" / "resources" / "static").toString
 
   @cask.postJson("/:clientName/chat")
   def chat(clientName: String, question: String): Response[String] =

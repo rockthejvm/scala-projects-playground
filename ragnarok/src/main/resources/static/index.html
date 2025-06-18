@@ -184,8 +184,58 @@
     const sendButton = document.getElementById('sendButton');
     let ws = null;
     let clientId = null;
+    let reconnectAttempt = 0;
+    let isServerAvailable = true;
+    const MAX_RECONNECT_DELAY = 30000; // Maximum delay of 30 seconds
 
-    function connectWebSocket() {
+    async function checkServerAvailable() {
+      try {
+        const response = await fetch('/');
+        isServerAvailable = response.ok;
+        if (isServerAvailable) {
+          reconnectAttempt = 0; // Reset reconnect attempts when server is available
+          const statusDiv = document.getElementById('server-status');
+          if (statusDiv) {
+            statusDiv.remove();
+          }
+        }
+        return isServerAvailable;
+      } catch (e) {
+        isServerAvailable = false;
+        showServerStatus("Server is not reachable. Attempting to reconnect...");
+        return false;
+      }
+    }
+
+    function showServerStatus(message) {
+      let statusDiv = document.getElementById('server-status');
+      if (!statusDiv) {
+        statusDiv = document.createElement('div');
+        statusDiv.id = 'server-status';
+        statusDiv.style.position = 'fixed';
+        statusDiv.style.top = '10px';
+        statusDiv.style.left = '50%';
+        statusDiv.style.transform = 'translateX(-50%)';
+        statusDiv.style.backgroundColor = '#ff4444';
+        statusDiv.style.color = 'white';
+        statusDiv.style.padding = '10px 20px';
+        statusDiv.style.borderRadius = '5px';
+        statusDiv.style.zIndex = '1000';
+        document.body.appendChild(statusDiv);
+      }
+      statusDiv.textContent = message;
+    }
+
+    async function connectWebSocket() {
+      // Check server availability first
+      if (!await checkServerAvailable()) {
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttempt), MAX_RECONNECT_DELAY);
+        console.log(`Server unavailable, retrying in ${delay/1000} seconds`);
+        reconnectAttempt++;
+        setTimeout(connectWebSocket, delay);
+        return;
+      }
+
       // Generate a unique client ID if not already present
       if (!clientId) {
         clientId = 'client_' + Math.random().toString(36).substr(2, 9);
@@ -199,17 +249,22 @@
       ws.onopen = () => {
         console.log('WebSocket connected');
         sendButton.disabled = false;
+        const statusDiv = document.getElementById('server-status');
+        if (statusDiv) {
+          statusDiv.remove();
+        }
       };
 
       ws.onclose = () => {
         console.log('WebSocket disconnected');
         sendButton.disabled = true;
-        // Try to reconnect after 3 seconds
-        setTimeout(connectWebSocket, 3000);
+        // Try to reconnect after checking server availability
+        connectWebSocket();
       };
 
       ws.onerror = (error) => {
         console.error('WebSocket error:', error);
+        showServerStatus("Connection error. Attempting to reconnect...");
       };
 
       ws.onmessage = (event) => {
@@ -359,6 +414,10 @@
     async function sendMessage() {
       const message = userInput.value.trim();
       if (!message || !ws || ws.readyState !== WebSocket.OPEN) {
+        if (!isServerAvailable) {
+          showServerStatus("Cannot send message: Server is not reachable");
+          return;
+        }
         console.log("Cannot send message: ", {
           message: !!message,
           ws: !!ws,

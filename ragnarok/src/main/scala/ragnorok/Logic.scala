@@ -3,7 +3,6 @@ package ragnorok
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import dev.langchain4j.data.document.Document
-import io.circe.Json
 import dev.langchain4j.data.document.loader.FileSystemDocumentLoader.loadDocumentsRecursively
 import dev.langchain4j.data.document.parser.TextDocumentParser
 import dev.langchain4j.data.document.splitter.DocumentSplitters
@@ -11,14 +10,10 @@ import dev.langchain4j.data.segment.TextSegment
 import dev.langchain4j.memory.chat.MessageWindowChatMemory
 import dev.langchain4j.model.chat.StreamingChatModel
 import dev.langchain4j.model.openai.{OpenAiEmbeddingModel, OpenAiStreamingChatModel}
-import dev.langchain4j.rag.content.Content
 import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever
-import dev.langchain4j.rag.query.Query
 import dev.langchain4j.service.AiServices
 import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore
-import fs2.Stream
-import fs2.concurrent.Channel
-import org.typelevel.log4cats.{Logger, LoggerFactory, SelfAwareStructuredLogger}
+import org.typelevel.log4cats.LoggerFactory
 
 import java.nio.file.FileSystems
 import java.util

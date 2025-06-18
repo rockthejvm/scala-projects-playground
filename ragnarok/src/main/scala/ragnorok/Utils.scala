@@ -1,9 +1,5 @@
 package ragnorok
 
-import org.http4s.headers.`Content-Type`
-import org.http4s.{Header, Headers, MediaType}
-import org.typelevel.ci.CIString
-
 object Utils:
   def readOpenAiApiKey: String =
     Option(System.getenv("OPENAI_API_KEY")).getOrElse {
@@ -26,13 +22,4 @@ object Utils:
       "Connection"        -> "keep-alive",
       "X-Accel-Buffering" -> "no",
       "Transfer-Encoding" -> "chunked"
-    )
-
-  def eventStreamHeaders: Headers =
-    Headers(
-      `Content-Type`(MediaType.unsafeParse("text/event-stream")),
-      Header.Raw(CIString("Cache-Control"), "no-cache"),
-      Header.Raw(CIString("Connection"), "keep-alive"),
-      Header.Raw(CIString("X-Accel-Buffering"), "no"),
-      Header.Raw(CIString("Transfer-Encoding"), "chunked")
     )

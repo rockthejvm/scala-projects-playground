@@ -5,17 +5,7 @@ lazy val ragnarok =
       name         := "ragnarok",
       version      := "0.1.0-SNAPSHOT",
       scalaVersion := "3.7.0",
-      libraryDependencies ++=
-        Circe.All ++
-          Http4s.All ++
-          Langchain4j.All ++
-          Logging.All ++
-          (
-            "com.lihaoyi"   %% "cask"    % "0.10.2" ::
-              "com.lihaoyi" %% "upickle" % "4.2.1" ::
-              "com.lihaoyi" %% "os-lib"  % "0.11.4" ::
-              Nil
-          ),
+      libraryDependencies ++= HaoyiLibs.All ++ Langchain4j.All ++ Logging.All,
       run / fork           := true,
       run / connectInput   := true,
       run / outputStrategy := Some(StdoutOutput),
@@ -35,7 +25,7 @@ lazy val ragnarok =
         "-Wconf:cat=deprecation:warning" // Make deprecation warnings non-fatal
       ),
       Compile / mainClass := Some("ragnorok.CaskServer"),
-      addCommandAlias("runApp", "ragnarok/runMain ragnorok.Main"),
+      addCommandAlias("runApp", "ragnarok/runMain ragnorok.CaskServer"),
 
       // Assembly settings for creating a fat JAR
       assembly / mainClass       := Some("ragnorok.Main"),
