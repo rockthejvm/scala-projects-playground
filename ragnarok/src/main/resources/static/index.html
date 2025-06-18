@@ -189,9 +189,12 @@
       // Generate a unique client ID if not already present
       if (!clientId) {
         clientId = 'client_' + Math.random().toString(36).substr(2, 9);
+        console.log("Generated client ID:", clientId);
       }
 
-      ws = new WebSocket(`ws://${window.location.host}/subscribe/${clientId}`);
+      const wsUrl = `ws://${window.location.host}/subscribe/${clientId}`;
+      console.log("Connecting to WebSocket:", wsUrl);
+      ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
         console.log('WebSocket connected');
@@ -210,38 +213,110 @@
       };
 
       ws.onmessage = (event) => {
+        console.log("WebSocket message received:", event.data);
+        
         try {
-          const messageLines = event.data.split('\n').replace(/\\n/g, '\n');
-          let data = null;
-
-          for (const line of messageLines) {
-            if (line.startsWith('data: ')) {
-              data = line.substring(6);
-              break;
-            }
-          }
-
-          if (data === '[DONE]') {
-            userInput.disabled = false;
-            sendButton.disabled = false;
-            userInput.focus();
+          const assistantMessageDiv = document.querySelector('.message.assistant:last-child');
+          if (!assistantMessageDiv) {
+            console.error("No assistant message div found");
             return;
           }
 
-          // Parse the JSON data
-          const parsed = JSON.parse(data);
-          const assistantMessageDiv = document.querySelector('.message.assistant:last-child');
           const contentDiv = assistantMessageDiv.querySelector('.message-content');
-          
-          if (parsed.content) {
-            const currentContent = contentDiv.innerHTML;
-            contentDiv.innerHTML = marked.parse(currentContent + parsed.content);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+          if (!contentDiv) {
+            console.error("No content div found");
+            return;
           }
+
+          // Initialize content if it's still showing placeholder
+          if (contentDiv.innerHTML === marked.parse('...')) {
+            contentDiv.innerHTML = '';
+            const currentBlock = document.createElement('span');
+            currentBlock.id = 'current-block';
+            contentDiv.appendChild(currentBlock);
+          }
+
+          // Process the message
+          if (event.data.includes('[DONE]')) {
+            console.log("Received [DONE] message");
+            // Convert any remaining content
+            const currentBlock = document.getElementById('current-block');
+            if (currentBlock && currentBlock.textContent) {
+              const html = marked.parse(currentBlock.textContent);
+              currentBlock.remove();
+              contentDiv.insertAdjacentHTML('beforeend', html);
+            }
+            enableInput();
+            return;
+          }
+
+          // Parse and handle the message content
+          let content = event.data;
+          if (content.startsWith('data:')) {
+            content = content.substring(6);
+          }
+
+          try {
+            const parsed = JSON.parse(content);
+            if (parsed.content) {
+              let currentBlock = document.getElementById('current-block');
+              if (!currentBlock) {
+                currentBlock = document.createElement('span');
+                currentBlock.id = 'current-block';
+                contentDiv.appendChild(currentBlock);
+              }
+              
+              // Accumulate content
+              currentBlock.textContent += parsed.content;
+              
+              // Check if we have a complete block
+              const text = currentBlock.textContent;
+              let shouldRender = false;
+              
+              // Don't split in the middle of a code block
+              const isInCodeBlock = (text.match(/```/g) || []).length % 2 === 1;
+              
+              if (!isInCodeBlock) {
+                if (text.includes('\n\n') || // Paragraph break
+                    text.endsWith('\n') ||   // Line break
+                    text.endsWith('. ') ||   // End of sentence
+                    text.endsWith('! ') ||   // End of exclamation
+                    text.endsWith('? ')) {   // End of question
+                  shouldRender = true;
+                }
+              } else {
+                // For code blocks, only render when we see the closing ```
+                shouldRender = text.includes('```') && (text.match(/```/g) || []).length % 2 === 0;
+              }
+
+              if (shouldRender) {
+                // Convert the current block to markdown
+                const html = marked.parse(text);
+                currentBlock.remove();
+                contentDiv.insertAdjacentHTML('beforeend', html);
+                // Create new block for upcoming content
+                const newBlock = document.createElement('span');
+                newBlock.id = 'current-block';
+                contentDiv.appendChild(newBlock);
+              }
+            }
+          } catch (e) {
+            console.error('Error processing content:', e);
+          }
+
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
         } catch (error) {
-          console.error('Error processing message:', error, event.data);
+          console.error('Error processing message:', error);
+          enableInput();
         }
       };
+    }
+
+    function enableInput() {
+      console.log("Re-enabling input");
+      userInput.disabled = false;
+      sendButton.disabled = false;
+      userInput.focus();
     }
 
     function addMessage(content, isUser = false) {
@@ -260,7 +335,16 @@
 
     async function sendMessage() {
       const message = userInput.value.trim();
-      if (!message || !ws || ws.readyState !== WebSocket.OPEN) return;
+      if (!message || !ws || ws.readyState !== WebSocket.OPEN) {
+        console.log("Cannot send message: ", {
+          message: !!message,
+          ws: !!ws,
+          wsState: ws ? ws.readyState : 'no ws',
+        });
+        return;
+      }
+
+      console.log("Sending message to chat endpoint:", message);
 
       // Disable input and button while processing
       userInput.disabled = true;
@@ -276,31 +360,34 @@
       userInput.value = '';
 
       try {
-        // Make REST call to chat endpoint
-        const response = await fetch(`/${clientId}/chat`, {
+        const url = `/${clientId}/chat`;
+        console.log("POST request to:", url);
+        
+        const response = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: `{ "question": "${message}" }`
+          body: JSON.stringify({ question: message })
         });
 
-        // Check for both 200 and 202 response codes
+        console.log("Chat response status:", response.status);
+
         if (response.status !== 200 && response.status !== 202) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
       } catch (error) {
-        console.error('Error:', error);
+        console.error('Error sending message:', error);
         const assistantMessageDiv = document.querySelector('.message.assistant:last-child');
         const contentDiv = assistantMessageDiv.querySelector('.message-content');
         contentDiv.innerHTML = marked.parse('Error: ' + error.message);
-        userInput.disabled = false;
-        sendButton.disabled = false;
-        userInput.focus();
+        enableInput();
       }
     }
 
+    // Initialize the connection when the page loads
     document.addEventListener('DOMContentLoaded', function() {
+      console.log("Page loaded, connecting WebSocket...");
       connectWebSocket();
       userInput.focus();
     });

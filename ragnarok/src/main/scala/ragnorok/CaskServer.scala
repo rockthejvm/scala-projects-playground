@@ -19,7 +19,9 @@ object CaskServer extends cask.MainRoutes {
   def subscribe(clientName: String): WsHandler = cask.WsHandler { connection =>
     val validClientName = !clientName.isBlank && !wsConnections.containsKey(clientName)
 
-    if validClientName then wsConnections.put(clientName, connection)
+    if validClientName then
+      logger.info(s"New client connected: $clientName").unsafeRunAndForget()
+      wsConnections.put(clientName, connection)
 
     cask.WsActor { case cask.Ws.Close(_, _) =>
       wsConnections.remove(connection)
@@ -46,8 +48,7 @@ object CaskServer extends cask.MainRoutes {
   def chat(clientName: String, question: String): Response[String] =
     if clientName.isBlank || !wsConnections.containsKey(clientName) then Response("No such client", statusCode = 400)
     else {
-      val clientName = "qwerty"
-      val contents   = queryContext(question)
+      val contents = queryContext(question)
 
       ChatService.assistant
         .chat(question, contents)
