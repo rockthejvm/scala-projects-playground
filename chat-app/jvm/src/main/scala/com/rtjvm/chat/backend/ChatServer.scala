@@ -7,7 +7,7 @@ import upickle.default.*
 
 import java.util.concurrent.ConcurrentHashMap
 
-object Server extends cask.MainRoutes {
+object ChatServer extends cask.MainRoutes {
 
   private val wsConnections = ConcurrentHashMap.newKeySet[cask.WsChannelActor]()
   private val postgres      = new Postgres(createDataDir(), "chatdb", 5432)
