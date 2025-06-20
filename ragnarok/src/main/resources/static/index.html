@@ -4,57 +4,121 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Chat Interface</title>
+  <title>RAGnarok Chat</title>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script>
-    // Configure marked to not normalize newlines
     marked.use({
       gfm: true,
       breaks: true
     });
   </script>
   <style>
-    html,
-    body {
+    :root {
+      --primary-color: #2563eb;
+      --primary-hover: #1d4ed8;
+      --background-light: #f8fafc;
+      --background-dark: #1e293b;
+      --text-light: #334155;
+      --text-dark: #e2e8f0;
+      --chat-light: #ffffff;
+      --chat-dark: #0f172a;
+      --user-message-light: #2563eb;
+      --user-message-dark: #3b82f6;
+      --assistant-message-light: #f1f5f9;
+      --assistant-message-dark: #1e293b;
+      --border-light: #e2e8f0;
+      --border-dark: #334155;
+      --shadow-light: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --shadow-dark: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.12);
+      --transition-speed: 0.3s;
+    }
+
+    [data-theme="dark"] {
+      --background: var(--background-dark);
+      --text: var(--text-dark);
+      --chat-bg: var(--chat-dark);
+      --user-message: var(--user-message-dark);
+      --assistant-message: var(--assistant-message-dark);
+      --border: var(--border-dark);
+      --shadow: var(--shadow-dark);
+    }
+
+    [data-theme="light"] {
+      --background: var(--background-light);
+      --text: var(--text-light);
+      --chat-bg: var(--chat-light);
+      --user-message: var(--user-message-light);
+      --assistant-message: var(--assistant-message-light);
+      --border: var(--border-light);
+      --shadow: var(--shadow-light);
+    }
+
+    html {
       height: 100%;
       margin: 0;
       padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background-color: #f5f5f5;
     }
 
     body {
+      height: 100%;
+      margin: 0;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--background);
+      color: var(--text);
+      transition: background-color var(--transition-speed), color var(--transition-speed);
       display: flex;
       flex-direction: column;
-      max-width: 1024px;
+      max-width: 1200px;
       margin: 0 auto;
-      padding: 20px;
       box-sizing: border-box;
-      height: 100vh;
     }
 
     .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       margin-bottom: 20px;
-      text-align: center;
+      padding: 10px 0;
     }
 
     .header h1 {
       margin: 0;
-      color: #2c3e50;
-      text-shadow: 5px 6px 2px rgba(0, 0, 0, 0.1);
+      color: var(--text);
       font-size: 2.5em;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--primary-color), #4f46e5);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: none;
+    }
+
+    .theme-toggle {
+      background: none;
+      border: none;
+      padding: 8px;
+      cursor: pointer;
+      color: var(--text);
+      font-size: 1.5em;
+      transition: transform 0.2s;
+    }
+
+    .theme-toggle:hover {
+      transform: scale(1.1);
     }
 
     .chat-container {
-      background-color: white;
-      border-radius: 10px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      background-color: var(--chat-bg);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
       padding: 20px;
       flex: 1;
       display: flex;
       flex-direction: column;
       min-height: 0;
-      /* Needed for Firefox */
+      transition: background-color var(--transition-speed), box-shadow var(--transition-speed);
+      border: 1px solid var(--border);
     }
 
     .chat-messages {
@@ -62,119 +126,221 @@
       overflow-y: auto;
       margin-bottom: 20px;
       padding: 10px;
-      border: 1px solid #e0e0e0;
-      border-radius: 5px;
+      border-radius: 12px;
       min-height: 0;
-      /* Needed for Firefox */
+      scroll-behavior: smooth;
     }
 
     .message {
       margin-bottom: 20px;
-      padding: 10px;
-      border-radius: 5px;
+      padding: 12px 16px;
+      border-radius: 12px;
       max-width: 85%;
+      animation: messageAppear 0.3s ease-out;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      position: relative;
+    }
+
+    @keyframes messageAppear {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .message.user {
       margin-left: auto;
-      background-color: #007bff;
+      background-color: var(--user-message);
       color: white;
+      border-bottom-right-radius: 4px;
     }
 
     .message.assistant {
       margin-right: auto;
-      background-color: #f8f9fa;
-      border: 1px solid #e9ecef;
+      background-color: var(--assistant-message);
+      color: var(--text);
+      border-bottom-left-radius: 4px;
     }
 
     .message-content {
-      line-height: 1.5;
+      line-height: 1.6;
+      font-size: 1rem;
     }
 
     .message.user .message-content code {
-      background-color: rgba(255, 255, 255, 0.1);
+      background-color: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
     }
 
     .message-content pre {
-      background-color: #f6f8fa;
-      border-radius: 6px;
+      background-color: rgba(0, 0, 0, 0.05);
+      border-radius: 8px;
       padding: 16px;
       overflow-x: auto;
+      margin: 12px 0;
     }
 
     .message-content code {
       font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
       font-size: 0.9em;
-      background-color: rgba(175, 184, 193, 0.2);
       padding: 0.2em 0.4em;
-      border-radius: 6px;
-    }
-
-    .message-content pre code {
-      background-color: transparent;
-      padding: 0;
-      font-size: 1em;
+      border-radius: 4px;
     }
 
     .input-container {
       display: flex;
-      gap: 10px;
+      gap: 12px;
+      padding: 12px;
+      background-color: var(--chat-bg);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      position: relative;
     }
 
     textarea {
       flex-grow: 1;
-      padding: 10px;
-      border: 1px solid #e0e0e0;
-      border-radius: 5px;
-      resize: vertical;
-      min-height: 60px;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      resize: none;
+      min-height: 24px;
+      max-height: 150px;
       font-family: inherit;
+      font-size: 1rem;
+      background-color: var(--assistant-message);
+      color: var(--text);
+      transition: all var(--transition-speed);
+      line-height: 1.5;
+    }
+
+    textarea:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px var(--primary-color);
     }
 
     button {
-      padding: 10px 20px;
-      background-color: #007bff;
+      padding: 12px 24px;
+      background-color: var(--primary-color);
       color: white;
       border: none;
-      border-radius: 5px;
+      border-radius: 8px;
       cursor: pointer;
-      font-size: 16px;
+      font-size: 1rem;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
-    button:hover {
-      background-color: #0056b3;
+    button:hover:not(:disabled) {
+      background-color: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+
+    button:active:not(:disabled) {
+      transform: translateY(0);
     }
 
     button:disabled {
-      background-color: #cccccc;
+      background-color: var(--border);
       cursor: not-allowed;
+      opacity: 0.7;
     }
 
-    /* Markdown Styles */
-    .message-content pre {
-      background-color: #e8e8e8;
-      padding: 10px;
-      border-radius: 5px;
-      overflow-x: auto;
+    .references {
+      margin-top: 12px;
+      font-size: 0.9em;
+      color: var(--text);
+      opacity: 0.8;
+      border-top: 1px solid var(--border);
+      padding-top: 8px;
     }
 
-    .message-content code {
-      background-color: #f8f8f8;
-      padding: 2px 4px;
-      border-radius: 3px;
+    #server-status {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #ef4444;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      z-index: 1000;
+      animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes slideDown {
+      from {
+        transform: translate(-50%, -100%);
+      }
+      to {
+        transform: translate(-50%, 0);
+      }
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+
+      .header h1 {
+        font-size: 2em;
+      }
+
+      .message {
+        max-width: 90%;
+      }
+
+      .input-container {
+        flex-direction: column;
+      }
+
+      button {
+        width: 100%;
+      }
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background-color: var(--border);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background-color: var(--text);
     }
   </style>
 </head>
 
-<body>
+<body data-theme="light">
   <div class="header">
     <h1>RAGnarok Chat</h1>
+    <button class="theme-toggle" aria-label="Toggle dark mode">🌙</button>
   </div>
   <div class="chat-container">
     <div class="chat-messages" id="messages"></div>
     <div class="input-container">
-      <textarea id="userInput" placeholder="Type your message here..." rows="3"></textarea>
-      <button id="sendButton">Send</button>
+      <textarea id="userInput" placeholder="Type your message here... (Shift + Enter for new line)" rows="1"></textarea>
+      <button id="sendButton">
+        <span>Send</span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"></line>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+        </svg>
+      </button>
     </div>
   </div>
 
@@ -182,6 +348,220 @@
     const messagesContainer = document.getElementById('messages');
     const userInput = document.getElementById('userInput');
     const sendButton = document.getElementById('sendButton');
+    let ws = null;
+    let clientId = null;
+    let reconnectAttempt = 0;
+    let isServerAvailable = true;
+    const MAX_RECONNECT_DELAY = 30000; // Maximum delay of 30 seconds
+
+    async function checkServerAvailable() {
+      try {
+        const response = await fetch('/');
+        isServerAvailable = response.ok;
+        if (isServerAvailable) {
+          reconnectAttempt = 0; // Reset reconnect attempts when server is available
+          const statusDiv = document.getElementById('server-status');
+          if (statusDiv) {
+            statusDiv.remove();
+          }
+        }
+        return isServerAvailable;
+      } catch (e) {
+        isServerAvailable = false;
+        showServerStatus("Server is not reachable. Attempting to reconnect...");
+        return false;
+      }
+    }
+
+    function showServerStatus(message) {
+      let statusDiv = document.getElementById('server-status');
+      if (!statusDiv) {
+        statusDiv = document.createElement('div');
+        statusDiv.id = 'server-status';
+        statusDiv.style.position = 'fixed';
+        statusDiv.style.top = '10px';
+        statusDiv.style.left = '50%';
+        statusDiv.style.transform = 'translateX(-50%)';
+        statusDiv.style.backgroundColor = '#ff4444';
+        statusDiv.style.color = 'white';
+        statusDiv.style.padding = '10px 20px';
+        statusDiv.style.borderRadius = '5px';
+        statusDiv.style.zIndex = '1000';
+        document.body.appendChild(statusDiv);
+      }
+      statusDiv.textContent = message;
+    }
+
+    async function connectWebSocket() {
+      // Check server availability first
+      if (!await checkServerAvailable()) {
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttempt), MAX_RECONNECT_DELAY);
+        console.log(`Server unavailable, retrying in ${delay/1000} seconds`);
+        reconnectAttempt++;
+        setTimeout(connectWebSocket, delay);
+        return;
+      }
+
+      // Generate a unique client ID if not already present
+      if (!clientId) {
+        clientId = 'client_' + Math.random().toString(36).substr(2, 9);
+        console.log("Generated client ID:", clientId);
+      }
+
+      const wsUrl = `ws://${window.location.host}/subscribe/${clientId}`;
+      console.log("Connecting to WebSocket:", wsUrl);
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+        sendButton.disabled = false;
+        const statusDiv = document.getElementById('server-status');
+        if (statusDiv) {
+          statusDiv.remove();
+        }
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket disconnected');
+        sendButton.disabled = true;
+        // Try to reconnect after checking server availability
+        connectWebSocket();
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        showServerStatus("Connection error. Attempting to reconnect...");
+      };
+
+      ws.onmessage = (event) => {
+        console.log("WebSocket message received:", event.data);
+        
+        try {
+          const assistantMessageDiv = document.querySelector('.message.assistant:last-child');
+          if (!assistantMessageDiv) {
+            console.error("No assistant message div found");
+            return;
+          }
+
+          const contentDiv = assistantMessageDiv.querySelector('.message-content');
+          if (!contentDiv) {
+            console.error("No content div found");
+            return;
+          }
+
+          // Initialize content if it's still showing placeholder
+          if (contentDiv.innerHTML === marked.parse('...')) {
+            contentDiv.innerHTML = '';
+            const currentBlock = document.createElement('span');
+            currentBlock.id = 'current-block';
+            contentDiv.appendChild(currentBlock);
+          }
+
+          // Process the message
+          if (event.data.includes('[DONE]')) {
+            console.log("Received [DONE] message");
+            // Convert any remaining content
+            const currentBlock = document.getElementById('current-block');
+            if (currentBlock && currentBlock.textContent) {
+              const html = marked.parse(currentBlock.textContent);
+              currentBlock.remove();
+              contentDiv.insertAdjacentHTML('beforeend', html);
+            }
+            enableInput();
+            return;
+          }
+
+          // Parse and handle the message content
+          let content = event.data;
+          if (content.startsWith('data:')) {
+            content = content.substring(6);
+          }
+
+          try {
+            const parsed = JSON.parse(content);
+            
+            // Handle references if present
+            if (parsed.references && Array.isArray(parsed.references) && parsed.references.length > 0) {
+              // Check if we already have a references section
+              let refsDiv = assistantMessageDiv.querySelector('.references');
+              if (!refsDiv) {
+                refsDiv = document.createElement('div');
+                refsDiv.className = 'references';
+                refsDiv.style.marginTop = '10px';
+                refsDiv.style.fontSize = '0.9em';
+                refsDiv.style.color = '#666';
+                refsDiv.style.borderTop = '1px solid #eee';
+                refsDiv.style.paddingTop = '8px';
+                assistantMessageDiv.appendChild(refsDiv);
+              }
+              refsDiv.innerHTML = `<strong>References:</strong><br>` + 
+                parsed.references.map(ref => `• ${ref}`).join('<br>');
+            }
+            
+            // Handle content if present
+            if (parsed.content !== undefined) {
+              let currentBlock = document.getElementById('current-block');
+              if (!currentBlock) {
+                currentBlock = document.createElement('span');
+                currentBlock.id = 'current-block';
+                contentDiv.appendChild(currentBlock);
+              }
+              
+              // Only add content if it's not empty
+              if (parsed.content) {
+                // Accumulate content
+                currentBlock.textContent += parsed.content;
+                
+                // Check if we have a complete block
+                const text = currentBlock.textContent;
+                let shouldRender = false;
+                
+                // Don't split in the middle of a code block
+                const isInCodeBlock = (text.match(/```/g) || []).length % 2 === 1;
+                
+                if (!isInCodeBlock) {
+                  if (text.includes('\n\n') || // Paragraph break
+                      text.endsWith('\n') ||   // Line break
+                      text.endsWith('. ') ||   // End of sentence
+                      text.endsWith('! ') ||   // End of exclamation
+                      text.endsWith('? ')) {   // End of question
+                    shouldRender = true;
+                  }
+                } else {
+                  // For code blocks, only render when we see the closing ```
+                  shouldRender = text.includes('```') && (text.match(/```/g) || []).length % 2 === 0;
+                }
+
+                if (shouldRender) {
+                  // Convert the current block to markdown
+                  const html = marked.parse(text);
+                  currentBlock.remove();
+                  contentDiv.insertAdjacentHTML('beforeend', html);
+                  // Create new block for upcoming content
+                  const newBlock = document.createElement('span');
+                  newBlock.id = 'current-block';
+                  contentDiv.appendChild(newBlock);
+                }
+              }
+            }
+          } catch (e) {
+            console.error('Error processing content:', e);
+          }
+
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        } catch (error) {
+          console.error('Error processing message:', error);
+          enableInput();
+        }
+      };
+    }
+
+    function enableInput() {
+      console.log("Re-enabling input");
+      userInput.disabled = false;
+      sendButton.disabled = false;
+      userInput.focus();
+    }
 
     function addMessage(content, isUser = false) {
       const messageDiv = document.createElement('div');
@@ -199,7 +579,20 @@
 
     async function sendMessage() {
       const message = userInput.value.trim();
-      if (!message) return;
+      if (!message || !ws || ws.readyState !== WebSocket.OPEN) {
+        if (!isServerAvailable) {
+          showServerStatus("Cannot send message: Server is not reachable");
+          return;
+        }
+        console.log("Cannot send message: ", {
+          message: !!message,
+          ws: !!ws,
+          wsState: ws ? ws.readyState : 'no ws',
+        });
+        return;
+      }
+
+      console.log("Sending message to chat endpoint:", message);
 
       // Disable input and button while processing
       userInput.disabled = true;
@@ -209,117 +602,41 @@
       addMessage(message, true);
       
       // Add initial assistant message div
-      const assistantMessageDiv = addMessage('...');
-      const contentDiv = assistantMessageDiv.querySelector('.message-content');
+      addMessage('...');
 
       // Clear input
       userInput.value = '';
 
       try {
-        const response = await fetch('/api/chat', {
+        const url = `/${clientId}/chat`;
+        console.log("POST request to:", url);
+        
+        const response = await fetch(url, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'text/event-stream'
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({ question: message })
         });
 
-        if (!response.ok) {
+        console.log("Chat response status:", response.status);
+
+        if (response.status !== 200 && response.status !== 202) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        let responseText = '';
-        let references = [];
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          // Process the chunk
-          const chunk = decoder.decode(value, { stream: true });
-          buffer += chunk;
-
-          // Split by double newlines to handle complete SSE messages
-          const events = buffer.split('\n\n');
-          buffer = events.pop() || '';
-
-          for (const event of events) {
-            const lines = event.split('\n');
-            let data = '';
-            
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                data = line.substring(6).trim();
-              }
-            }
-
-            
-            if (!data || data === '[DONE]') {
-              // Stream is complete
-              userInput.disabled = false;
-              sendButton.disabled = false;
-              userInput.focus();
-              return;
-            }
-
-
-            try {
-              // Try to parse the data as JSON
-              try {
-                if (data === '[DONE]') {
-                  return;
-                }
-
-                const parsed = JSON.parse(data);
-                if (parsed.content) {
-                  // Append the new content
-                  responseText += parsed.content;
-                }
-                
-                // Update references if present
-                if (parsed.references && Array.isArray(parsed.references)) {
-                  references = parsed.references;
-                }
-              } catch (e) {
-                console.error('Error parsing message:', e, 'Data:', data);
-                // If it's not valid JSON, just append it as text
-                if (data && data !== '[DONE]') {
-                  responseText += data;
-                }
-              }
-              
-              // Always update the display with the latest content and references
-              let displayText = responseText;
-              if (references.length > 0) {
-                displayText += '\n\n**References:**\n' + 
-                  references.map(ref => `- ${ref}`).join('\n');
-              }
-              
-              // Only update the content if we have something to show
-              if (displayText.trim()) {
-                contentDiv.innerHTML = marked.parse(displayText);
-              }
-              messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            } catch (e) {
-              console.error('Error updating message:', e, 'Data:', data);
-              contentDiv.textContent = 'Error: ' + (e.message || 'Failed to process response');
-            }
-          }
-        }
       } catch (error) {
-        console.error('Error:', error);
-        contentDiv.textContent = 'Error: ' + (error.message || 'Failed to get response');
-        userInput.disabled = false;
-        sendButton.disabled = false;
-        userInput.focus();
+        console.error('Error sending message:', error);
+        const assistantMessageDiv = document.querySelector('.message.assistant:last-child');
+        const contentDiv = assistantMessageDiv.querySelector('.message-content');
+        contentDiv.innerHTML = marked.parse('Error: ' + error.message);
+        enableInput();
       }
     }
 
+    // Initialize the connection when the page loads
     document.addEventListener('DOMContentLoaded', function() {
+      console.log("Page loaded, connecting WebSocket...");
+      connectWebSocket();
       userInput.focus();
     });
 
@@ -331,6 +648,39 @@
         e.preventDefault();
         sendMessage();
       }
+    });
+
+    // Reconnect WebSocket when the window regains focus
+    window.addEventListener('focus', () => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        connectWebSocket();
+      }
+    });
+
+    // Add theme toggle functionality
+    const themeToggle = document.querySelector('.theme-toggle');
+    const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+    
+    // Set initial theme based on system preference
+    document.body.dataset.theme = prefersDarkScheme.matches ? 'dark' : 'light';
+    updateThemeToggle();
+    
+    themeToggle.addEventListener('click', () => {
+      const currentTheme = document.body.dataset.theme;
+      document.body.dataset.theme = currentTheme === 'light' ? 'dark' : 'light';
+      updateThemeToggle();
+    });
+    
+    function updateThemeToggle() {
+      const isDark = document.body.dataset.theme === 'dark';
+      themeToggle.innerHTML = isDark ? '☀️' : '🌙';
+    }
+    
+    // Auto-resize textarea
+    const textarea = document.getElementById('userInput');
+    textarea.addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 150) + 'px';
     });
   </script>
 </body>

@@ -1,25 +1,12 @@
 import sbt.*
 import sbt.Keys.*
 
-object Circe {
-  val Version = "0.14.13"
+object HaoyiLibs {
+  val Cask    = "com.lihaoyi" %% "cask"    % "0.10.2"
+  val Upickle = "com.lihaoyi" %% "upickle" % "4.2.1"
+  val OsLib   = "com.lihaoyi" %% "os-lib"  % "0.11.4"
 
-  val Core    = "io.circe" %% "circe-core"    % Version
-  val Generic = "io.circe" %% "circe-generic" % Version
-  val Parser  = "io.circe" %% "circe-parser"  % Version
-
-  val All: List[ModuleID] = Core :: Generic :: Parser :: Nil
-}
-
-object Http4s {
-  val Version = "0.23.30"
-
-  val Dsl         = "org.http4s" %% "http4s-dsl"          % Version
-  val EmberServer = "org.http4s" %% "http4s-ember-server" % Version
-  val EmberClient = "org.http4s" %% "http4s-ember-client" % Version
-  val Circe       = "org.http4s" %% "http4s-circe"        % Version
-
-  val All: List[ModuleID] = Dsl :: EmberServer :: EmberClient :: Circe :: Nil
+  val All: List[ModuleID] = Cask :: Upickle :: OsLib :: Nil
 }
 
 object Logging {
